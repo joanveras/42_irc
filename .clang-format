@@ -1,0 +1,22 @@
+---
+BasedOnStyle: LLVM
+ColumnLimit: 120
+IndentWidth: 2
+UseTab: Never
+TabWidth: 2
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: false
+  AfterControlStatement: false
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: false
+  AfterUnion: false
+  BeforeCatch: false
+  BeforeElse: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AlignConsecutiveAssignments: false
+AlignTrailingComments: true
+ReflowComments: true
