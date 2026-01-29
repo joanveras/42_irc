@@ -5,7 +5,6 @@ CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -Iinclude
 
 SRCS = main.cpp $(wildcard src/*.cpp)
 OBJDIR = .objs
-# convert src/Name.cpp -> .objs/src/Name.o
 OBJS = $(patsubst %.cpp,$(OBJDIR)/%.o,$(SRCS))
 
 RM = rm -f
