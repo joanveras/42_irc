@@ -1,4 +1,31 @@
-*.out
-.vscode
-.objs
+# Executables
 ircserv
+*.out
+*.exe
+
+# Build artifacts
+.objs/
+*.o
+*.a
+*.so
+*.dylib
+
+# Editor & IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Clang-Tidy cache
+.clang-tidy-cache/
+.clangd/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Compilation database
+compile_commands.json
