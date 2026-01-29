@@ -76,7 +76,6 @@ WarningsAsErrors: "*"
 HeaderFilterRegex: ".*"
 AnalyzeTemporaryDtors: false
 FormatStyle: none
-StandardToUse: c++98
 User: ~
 CheckOptions:
   - key: readability-identifier-naming.NamespaceCase
