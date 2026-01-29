@@ -1,6 +1,23 @@
 # ft_irc – IRC Server in C++98
 
-## 📋 Current Implementation Summary
+## 🔍 **Code Quality – Clang-Tidy**
+
+### Installation
+
+```bash
+sudo apt-get update
+sudo apt-get install clang-tidy
+```
+
+### Usage
+
+```bash
+clang-tidy <file> -- -std=c++98 -Iinclude
+```
+
+---
+
+## 📋 **Current Implementation Summary**
 
 ### ✅ **Already Implemented**
 
