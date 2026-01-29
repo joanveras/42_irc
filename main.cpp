@@ -1,15 +1,19 @@
 #include "./include/Server.hpp"
 
-int	main( int argc, char **argv) {
-	(void)argc;
-	(void)argv;
+namespace {
+const int DEFAULT_PORT = 6667;
+}
 
-	try {
-		Server	server( 6667, "passw" );
-		server.run();
-	} catch ( const std::exception& e ) {
-		std::cerr << e.what() << std::endl;
-	}
+int main(int argc, char **argv) {
+  (void)argc;
+  (void)argv;
 
-	return 0;
+  try {
+    Server server(DEFAULT_PORT, "passw");
+    server.run();
+  } catch (const std::exception &e) {
+    std::cerr << e.what() << std::endl;
+  }
+
+  return 0;
 }
