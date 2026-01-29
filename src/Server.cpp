@@ -1,6 +1,7 @@
 #include "../include/Server.hpp"
 
 namespace {
+// Server constants for socket operations and polling
 const int ERROR_CODE = -1;
 const int POLL_TIMEOUT = -1;
 const int SERVER_FD_INDEX = 0;
@@ -10,14 +11,17 @@ const int SOCK_OPT = 1;
 const int ONE_BYTE = 1;
 const int MIN_USER_ARGS = 5;
 const int REALNAME_ARG = 4;
-} // namespace
+} // namespace ServerInternal
 
-Server::Server() {}
+Server::Server() {
+}
 
 Server::Server(const int PORT, const std::string &PASSWORD)
-    : _port(PORT), _password(PASSWORD), _server_name("irc.server") {}
+    : _port(PORT), _password(PASSWORD), _server_name("irc.server") {
+}
 
-Server::~Server() {}
+Server::~Server() {
+}
 
 void Server::run() {
   initSocket(_port);
@@ -62,11 +66,9 @@ void Server::initSocket(const int PORT) {
   // "Address already in use" errors) Why needed: Without this, the OS would
   // enforce a TIME_WAIT period before the port can be reused
   int optval = SOCK_OPT;
-  if (setsockopt(SOCK_FD, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) ==
-      ERROR_CODE) {
+  if (setsockopt(SOCK_FD, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == ERROR_CODE) {
     close(SOCK_FD);
-    throw std::runtime_error(
-        "Unable to set SO_REUSEADDR: Server::initSocket()");
+    throw std::runtime_error("Unable to set SO_REUSEADDR: Server::initSocket()");
   }
 
   // OS Interpretation: Defines how the socket will be addressed
@@ -109,8 +111,7 @@ void Server::setNonBlocking(int fd) {
   // rather than blocking Use Case: Essential for event-driven servers using
   // select(), poll(), or epoll
   if (fcntl(fd, F_SETFL, O_NONBLOCK) == ERROR_CODE)
-    throw std::runtime_error(
-        "Unable to set non-blocking mode: Server::setNonBlocking()");
+    throw std::runtime_error("Unable to set non-blocking mode: Server::setNonBlocking()");
 }
 
 void Server::acceptClient() {
@@ -150,8 +151,7 @@ void Server::handleClientData(Client &client) {
     buffer[bytesRead] = '\0';
     std::string data(buffer, bytesRead);
 
-    std::cout << "Received from client " << client.getFd() << ": ["
-              << data.substr(0, data.find('\n')) << "]" << std::endl;
+    std::cout << "Received " << bytesRead << " bytes from client " << client.getFd() << std::endl;
 
     client.appendToBuffer(data);
 
@@ -161,8 +161,6 @@ void Server::handleClientData(Client &client) {
 
       processCommand(client, command);
     }
-
-    // bytesRead = recv( client.getFd(), buffer, sizeof(buffer) - ONE_BYTE, 0 );
   } else if (bytesRead == 0) {
     std::cout << "Client disconnected: " << client.getFd() << std::endl;
     for (size_t i = FIRST_CLIENT_INDEX; i < _poll_fds.size(); ++i) {
@@ -173,8 +171,7 @@ void Server::handleClientData(Client &client) {
     }
     return;
   } else if (bytesRead == ERROR_CODE && errno != EAGAIN)
-    std::cerr << "Read error for client " << client.getFd() << ": "
-              << strerror(errno) << std::endl;
+    std::cerr << "Read error for client " << client.getFd() << ": " << strerror(errno) << std::endl;
 }
 
 void Server::removeClient(size_t index) {
@@ -199,8 +196,7 @@ void Server::processCommand(Client &client, const std::string &command) {
   std::string cmd = args[0];
   std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
 
-  if (!client.isAuthenticated() && cmd != "PASS" && cmd != "NICK" &&
-      cmd != "USER" && cmd != "QUIT") {
+  if (!client.isAuthenticated() && cmd != "PASS" && cmd != "NICK" && cmd != "USER" && cmd != "QUIT") {
     sendError(client, "464", "Password incorrect");
     return;
   }
@@ -270,8 +266,7 @@ void Server::handleNICK(Client &client, const std::vector<std::string> &args) {
   }
 
   for (size_t i = 0; i < _clients.size(); ++i) {
-    if (_clients[i].getFd() != client.getFd() &&
-        _clients[i].getNickname() == nickname) {
+    if (_clients[i].getFd() != client.getFd() && _clients[i].getNickname() == nickname) {
       sendError(client, "433", nickname + " :Nickname is already in use");
       return;
     }
@@ -320,12 +315,9 @@ void Server::handleQUIT(Client &client, const std::vector<std::string> &args) {
   }
 }
 
-void Server::sendError(Client &client, const std::string &code,
-                       const std::string &message) {
-  std::string error =
-      ":" + getServerName() + " " + code + " " +
-      (client.getNickname().empty() ? "*" : client.getNickname()) + " " +
-      message + "\r\n";
+void Server::sendError(Client &client, const std::string &code, const std::string &message) {
+  std::string error = ":" + getServerName() + " " + code + " " +
+                      (client.getNickname().empty() ? "*" : client.getNickname()) + " " + message + "\r\n";
 
   send(client.getFd(), error.c_str(), error.length(), 0);
 }
@@ -336,7 +328,9 @@ void Server::sendReply(Client &client, const std::string &message) {
   send(client.getFd(), reply.c_str(), reply.length(), 0);
 }
 
-const std::string &Server::getServerName() const { return _server_name; }
+const std::string &Server::getServerName() const {
+  return _server_name;
+}
 
 std::vector<std::string> Server::splitCommand(const std::string &command) {
   std::vector<std::string> args;
@@ -347,4 +341,75 @@ std::vector<std::string> Server::splitCommand(const std::string &command) {
     args.push_back(arg);
   }
   return args;
+}
+
+void Server::handlePING(Client &client, const IRCMessage &msg) {
+  if (msg.getParamCount() < IRC_PARAM_OFFSET) {
+    sendError(client, "409", "No origin specified");
+    return;
+  }
+
+  std::string pong = "PONG " + _server_name + " :" + msg.getParams()[0];
+  sendReply(client, ":" + _server_name + " " + pong + "\r\n");
+}
+
+void Server::handleJOIN(Client &client, const IRCMessage &msg) {
+  if (!client.isAuthenticated()) {
+    sendError(client, "451", ":You have not registered");
+    return;
+  }
+
+  if (msg.getParamCount() < IRC_PARAM_OFFSET) {
+    sendError(client, "461", "JOIN :Not enough parameters");
+    return;
+  }
+
+  std::string channelName = msg.getParams()[0];
+  if (channelName[0] != '#' && channelName[0] != '&') {
+    sendError(client, "403", channelName + " :No such channel");
+    return;
+  }
+
+  /*
+  Channel &channel = getOrCreateChannel(channelName);
+  channel.addClient(client);
+  */
+
+  std::string nick = client.getNickname();
+  std::string user = client.getUsername();
+  std::string host = "localhost";
+
+  std::string joinMsg = ":" + nick + "!" + user + "@" + host + " JOIN :" + channelName + "\r\n";
+
+  /*
+  channel.broadcast(joinMsg, NULL);
+
+  To implement: Mostrar lista de usuários
+
+  To implement: Mostrar tópico do canal
+  */
+}
+
+void Server::sendWelcome(Client &client) {
+  std::string nick = client.getNickname();
+
+  std::string replies[] = {"001 " + nick + " :Welcome to the Internet Relay Network " + nick + "!" +
+                               client.getUsername() + "@localhost",
+                           "002 " + nick + " :Your host is " + _server_name + ", running version 1.0",
+                           "003 " + nick + " " + _server_name + " 1.0 o o",
+                           "004 " + nick + " CHANNELLEN=32 NICKLEN=9 TOPICLEN=307 :are " + "supported by this server"};
+
+  for (size_t i = 0; i < IRC_WELCOME_COUNT; i++) {
+    sendReply(client, ":" + _server_name + " " + replies[i] + "\r\n");
+  }
+
+  sendMOTD(client);
+}
+
+void Server::sendMOTD(Client &client) {
+  std::string nick = client.getNickname();
+
+  sendReply(client, ":" + _server_name + " 375 " + nick + " :- " + _server_name + " Message of the day -\r\n");
+  sendReply(client, ":" + _server_name + " 372 " + nick + " :Welcome to ft_irc server!\r\n");
+  sendReply(client, ":" + _server_name + " 376 " + nick + " :End of /MOTD command\r\n");
 }

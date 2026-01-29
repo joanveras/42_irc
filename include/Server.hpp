@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "./Client.hpp"
+#include "./IRCMessage.hpp"
 
 class Server {
 
@@ -54,11 +55,25 @@ private:
   void handleUSER(Client &client, const std::vector<std::string> &args);
   void handleQUIT(Client &client, const std::vector<std::string> &args);
 
-  void sendError(Client &client, const std::string &code,
-                 const std::string &message);
+  void sendError(Client &client, const std::string &code, const std::string &message);
   void sendReply(Client &client, const std::string &message);
   const std::string &getServerName() const;
   std::vector<std::string> splitCommand(const std::string &command);
+
+  void handleJOIN(Client &client, const IRCMessage &msg);
+  void handlePART(Client &client, const IRCMessage &msg);
+  void handlePRIVMSG(Client &client, const IRCMessage &msg);
+  void handlePING(Client &client, const IRCMessage &msg);
+  void handleWHOIS(Client &client, const IRCMessage &msg);
+  void handleMODE(Client &client, const IRCMessage &msg);
+  void handleLIST(Client &client, const IRCMessage &msg);
+  void handleNAMES(Client &client, const IRCMessage &msg);
+
+  void sendWelcome(Client &client);
+  void sendISupport(Client &client);
+  void sendMOTD(Client &client);
+
+  void broadcastToChannel(const std::string &channel, const std::string &message, Client *exclude = NULL);
 };
 
 #endif
