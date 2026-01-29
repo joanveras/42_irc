@@ -1,8 +1,9 @@
 #include "./include/Server.hpp"
 
 namespace {
+// Application configuration constants
 const int DEFAULT_PORT = 6667;
-}
+} // namespace AppConfig
 
 int main(int argc, char **argv) {
   (void)argc;
