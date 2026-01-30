@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <vector>
 
+#include "./Channel.hpp"
 #include "./Client.hpp"
 #include "./IRCMessage.hpp"
 
@@ -36,12 +37,17 @@ public:
   void run();
 
 private:
+  // Type alias for command handler function pointers
+  typedef void (Server::*CommandHandler)(Client &, const std::vector<std::string> &);
+
   int _port;
   int _server_socket;
   std::string _password;
   std::string _server_name;
   std::vector<Client> _clients;
+  std::map<std::string, Channel> _channels;
   std::vector<pollfd> _poll_fds;
+  std::map<std::string, CommandHandler> _command_handlers;
 
   void initSocket(const int PORT);
   void setNonBlocking(int fd);
@@ -50,16 +56,17 @@ private:
   void removeClient(size_t index);
   void processCommand(Client &client, const std::string &command);
 
-  void handlePASS(Client &client, const std::vector<std::string> &args);
-  void handleNICK(Client &client, const std::vector<std::string> &args);
-  void handleUSER(Client &client, const std::vector<std::string> &args);
-  void handleQUIT(Client &client, const std::vector<std::string> &args);
-
   void sendError(Client &client, const std::string &code, const std::string &message);
   void sendReply(Client &client, const std::string &message);
   const std::string &getServerName() const;
   std::vector<std::string> splitCommand(const std::string &command);
+  std::string getClientChannels(const Client &client) const;
+  Client *findClientByNick(const std::string &nick);
 
+  void handlePASS(Client &client, const std::vector<std::string> &args);
+  void handleNICK(Client &client, const std::vector<std::string> &args);
+  void handleUSER(Client &client, const std::vector<std::string> &args);
+  void handleQUIT(Client &client, const std::vector<std::string> &args);
   void handleJOIN(Client &client, const IRCMessage &msg);
   void handlePART(Client &client, const IRCMessage &msg);
   void handlePRIVMSG(Client &client, const IRCMessage &msg);
