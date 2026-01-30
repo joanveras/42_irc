@@ -325,3 +325,25 @@ std::vector<std::string>	Server::splitCommand( const std::string& command ) {
 	}
 	return args;
 }
+
+Channel *Server::getChannels(const std::string &name) {
+	std::map<std::string, Channel*>::iterator it = _channels.find(name);
+	
+	if (it != _channels.end()) {
+		return it->second;
+	}
+
+	Channel *newChannel = new Channel(name);
+	_channels[name] = newChannel;
+	return newChannel;
+}
+
+void Server::checkEmptyChannel(const std::string &name) {
+	std::map<std::string, Channel*>::iterator it = _channels.find(name);
+
+	if (it != _channels.end()) {
+		delete it->second;
+		_channels.erase(it);
+		std::cout << "Canal " << name << " deletado ou vázio." << std::endl;
+	}
+}
