@@ -21,6 +21,7 @@
 # include <netinet/in.h>
 
 # include "./Client.hpp"
+# include "Channel.hpp"
 
 class	Server {
 
@@ -42,6 +43,7 @@ class	Server {
 		std::string			_server_name;
 		std::vector<Client>	_clients;
 		std::vector<pollfd>	_poll_fds;
+		std::map<std::string, Channel*> _channels;
 		
 		void						initSocket( const int port );
 		void						setNonBlocking( int fd );
@@ -59,6 +61,9 @@ class	Server {
 		void						sendReply( Client& client, const std::string& message );
 		const std::string&			getServerName( void ) const;
 		std::vector<std::string>	splitCommand( const std::string& command );
+
+		Channel *getChannels(const std::string &name);
+		void checkEmptyChannel(const std::string &name);
 
 };
 
