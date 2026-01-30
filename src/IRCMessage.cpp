@@ -65,6 +65,22 @@ const std::vector<std::string> &IRCMessage::getParams() const {
   return _params;
 }
 
+const std::string &IRCMessage::getPrefix() const {
+  return _prefix;
+}
+
+bool IRCMessage::hasTrailing() const {
+  return !_trailing.empty();
+}
+
+const std::string &IRCMessage::getCommand() const {
+  return _command;
+}
+
+const std::string &IRCMessage::getTrailing() const {
+  return _trailing;
+}
+
 std::size_t IRCMessage::getParamCount() const {
   return _params.size();
 }
