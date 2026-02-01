@@ -3,6 +3,10 @@
 
 Channel::Channel(const std::string &name) {
     _name = name;
+    _modeI = false;
+    _modeT = false;
+    _modeK = false;
+    _modeL = false;
 }
 
 Channel::~Channel() {
@@ -65,17 +69,23 @@ bool Channel::isOperator(int clientFd) const {
 }
 
 bool Channel::hasKey() const {
-    return _key.empty() ? false : true;
+    return _modeK;
+}
+
+bool Channel::isFull() const {
+    return _members.size() == _limit ? true : false;
 }
 
 bool Channel::isInviteOnly() const {
+    return _modeI;
 }
 
+//Essa validação tem que entrar no server para não instanciar o objeto no caso de nome inválido
 bool Channel::isValidName(const std::string &name) const {
     if (name.length() > 200) {
         return false;
     }
-    if (name[0] != '&' || name[0] != '#') {
+    if (name[0] != '&' && name[0] != '#') {
         return false;
     }
     for (std::string::const_iterator it = name.begin(); it != name.end(); it++) {
@@ -87,43 +97,45 @@ bool Channel::isValidName(const std::string &name) const {
 }
 
 void Channel::addMember(Client *client) {
-    if (_size < _limit) {
+    if (_members.size() < _limit) {
         _members.insert(std::pair<int, Client*>(client->getFd(),client));
-        _size++;
     }
     else {
-        //jogar uma exceção aqui (com uma mensagem de que a capacidade total ja foi atingida)
+        //enviar mensagem em conformidade com RFC 1459
     }
 }
 
 void Channel::removeMember(int clientFd) {
     std::map<int, Client*>::iterator it = _members.find(clientFd);
-    if (it == _members.end()) {
-        //jogar uma exceção aqui (não encontrou o membro no canal)
+    if (it != _members.end()) {
+        _members.erase(it);
+        this->removeOperator(clientFd);
     }
     else {
-        _members.erase(it);
-        _size--;
+        //enviar mensagem em conformidade com RFC 1459
     }
 }
 
 void Channel::addOperator(int clientFd) {
-    if (_size < _limit) {
+    if (_members.size() < _limit) {
         _operators.push_back(clientFd);
-        _size++;
     }
     else {
-        //jogar uma exceção aqui (capacidade maxima ja atingida)
+        //enviar mensagem em conformidade com RFC 1459
     }
 }
 
 void Channel::removeOperator(int clientFd) {
     std::vector<int>::iterator it = std::find(_operators.begin(), _operators.end(), clientFd);
-    if (it == _operators.end()) {
-        //jogar uma exceção não encontrou o operador a ser removido
+    if (it != _operators.end()) {
+        _operators.erase(it);
+        this->removeMember(clientFd);
     }
     else {
-        _operators.erase(it);
-        _size--;
+        //enviar mensagem em conformidade com RFC 1459
     }
+}
+
+void Channel::broadcast(const std::string &message, int excludeFd) {
+
 }
