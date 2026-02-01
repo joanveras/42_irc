@@ -12,7 +12,6 @@ class Channel {
         std::string _topic;
         std::string _key;
         std::size_t _limit;
-        std::size_t _size;
 
         std::map<int, Client*> _members;
         std::vector<int> _operators;
@@ -63,7 +62,7 @@ class Channel {
         bool getMode(char mode) const ;
 
         //communication
-        void broadcast(const std::string &message, int exclude_fd);// enviar mensagem para todos no canal
+        void broadcast(const std::string &message, int excludeFd);// enviar mensagem para todos no canal
 };
 
 #endif
