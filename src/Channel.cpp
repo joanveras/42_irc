@@ -85,3 +85,45 @@ bool Channel::isValidName(const std::string &name) const {
     }
     return true;
 }
+
+void Channel::addMember(Client *client) {
+    if (_size < _limit) {
+        _members.insert(std::pair<int, Client*>(client->getFd(),client));
+        _size++;
+    }
+    else {
+        //jogar uma exceção aqui (com uma mensagem de que a capacidade total ja foi atingida)
+    }
+}
+
+void Channel::removeMember(int clientFd) {
+    std::map<int, Client*>::iterator it = _members.find(clientFd);
+    if (it == _members.end()) {
+        //jogar uma exceção aqui (não encontrou o membro no canal)
+    }
+    else {
+        _members.erase(it);
+        _size--;
+    }
+}
+
+void Channel::addOperator(int clientFd) {
+    if (_size < _limit) {
+        _operators.push_back(clientFd);
+        _size++;
+    }
+    else {
+        //jogar uma exceção aqui (capacidade maxima ja atingida)
+    }
+}
+
+void Channel::removeOperator(int clientFd) {
+    std::vector<int>::iterator it = std::find(_operators.begin(), _operators.end(), clientFd);
+    if (it == _operators.end()) {
+        //jogar uma exceção não encontrou o operador a ser removido
+    }
+    else {
+        _operators.erase(it);
+        _size--;
+    }
+}
