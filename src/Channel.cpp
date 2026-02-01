@@ -1,4 +1,5 @@
 #include "../include/Channel.hpp"
+#include <algorithm>
 
 Channel::Channel(const std::string &name) {
     _name = name;
@@ -51,19 +52,16 @@ const std::string &Channel::getName() const {
     return _name;
 }
 
-bool Channel::isMember(int fd) const {
-    std::map<int, Client*>::const_iterator it = _members.find(fd);
+bool Channel::isMember(int clientFd) const {
+    std::map<int, Client*>::const_iterator it = _members.find(clientFd);
 
-    return (it != _members.end()) ? true : false;
+    return it != _members.end() ? true : false;
 }
 
-bool Channel::isOperator(int fd) const {
-    for (std::vector<int>::const_iterator it = _operators.begin(); it != _operators.end(); it++) {
-        if (*it == fd) {
-            return true;
-        }
-    }
-    return false;
+bool Channel::isOperator(int clientFd) const {
+    std::vector<int>::const_iterator it = std::find(_operators.begin(), _operators.end(), clientFd);
+    
+    return it != _operators.end() ? true : false;
 }
 
 bool Channel::hasKey() const {
@@ -71,5 +69,19 @@ bool Channel::hasKey() const {
 }
 
 bool Channel::isInviteOnly() const {
+}
 
+bool Channel::isValidName(const std::string &name) const {
+    if (name.length() > 200) {
+        return false;
+    }
+    if (name[0] != '&' || name[0] != '#') {
+        return false;
+    }
+    for (std::string::const_iterator it = name.begin(); it != name.end(); it++) {
+        if (*it == ' ' || *it == ',' || *it == '\a') {
+            return false;
+        }
+    }
+    return true;
 }
