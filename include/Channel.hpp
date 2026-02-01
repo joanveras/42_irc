@@ -12,6 +12,7 @@ class Channel {
         std::string _topic;
         std::string _key;
         std::size_t _limit;
+        std::size_t _size;
 
         std::map<int, Client*> _members;
         std::vector<int> _operators;
@@ -52,8 +53,8 @@ class Channel {
         const std::string &getName() const ;
 
         //member management
-        void addClient(Client *client);
-        void removeClient(int clientFd);
+        void addMember(Client *client);
+        void removeMember(int clientFd);
         void addOperator(int clientFd);
         void removeOperator(int clientFd);
 
