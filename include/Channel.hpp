@@ -32,8 +32,8 @@ class Channel {
         Channel(const Channel &other);
         Channel &operator=(const Channel &other);
 
-        bool isMember(int fd) const ;
-        bool isOperator(int fd) const ;
+        bool isMember(int clientFd) const ;
+        bool isOperator(int clientFd) const ;
         bool isInviteOnly() const ;
         bool isTopicRestricted() const ;
         bool hasKey() const ;
@@ -53,9 +53,9 @@ class Channel {
 
         //member management
         void addClient(Client *client);
-        void removeClient(int fd);
-        void addOperator(int fd);
-        void removeOperator(int fd);
+        void removeClient(int clientFd);
+        void addOperator(int clientFd);
+        void removeOperator(int clientFd);
 
         // mode management
         void setMode(char mode, bool setting);
