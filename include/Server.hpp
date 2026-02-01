@@ -75,6 +75,9 @@ private:
   void handleMODE(Client &client, const IRCMessage &msg);
   void handleLIST(Client &client, const IRCMessage &msg);
   void handleNAMES(Client &client, const IRCMessage &msg);
+  void handleKICK(Client &client, const IRCMessage &msg);
+  void handleTOPIC(Client &client, const IRCMessage &msg);
+  void handleINVITE(Client &client, const IRCMessage &msg);
 
   void sendWelcome(Client &client);
   void sendISupport(Client &client);

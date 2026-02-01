@@ -540,6 +540,23 @@ void Server::handleWHOIS(Client &client, const IRCMessage &msg) {
   sendReply(client, ":" + _server_name + " 318 " + senderNick + " " + targetNick + " :End of /WHOIS list\r\n");
 }
 
+void Server::handleMODE(Client &client, const IRCMessage &msg) {
+  // To implement
+}
+
+void Server::handleTOPIC(Client &client, const IRCMessage &msg) {
+  // To implement
+}
+
+void Server::handleINVITE(Client &client, const IRCMessage &msg) {
+  // To implement
+}
+
+void Server::handleKICK(Client &client, const IRCMessage &msg) {
+  // To implement
+}
+
+
 void Server::sendWelcome(Client &client) {
   std::string nick = client.getNickname();
 
