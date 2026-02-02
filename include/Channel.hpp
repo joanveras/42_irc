@@ -22,11 +22,9 @@ class Channel {
         bool _modeK;// key required
         bool _modeL;// user limit active
 
-    private:
-        bool isValidName(const std::string &name) const ;
-
     public:
         //canonical orthodox form
+        Channel();
         Channel(const std::string &name);
         ~Channel();
         Channel(const Channel &other);
@@ -52,7 +50,7 @@ class Channel {
         const std::string &getName() const ;
 
         //member management
-        void addMember(Client *client);
+        void addMember(Client *client, std::string &givenKey);
         void removeMember(int clientFd);
         void addOperator(int clientFd);
         void removeOperator(int clientFd);
