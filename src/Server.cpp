@@ -734,10 +734,11 @@ void Server::broadcastToChannel(const std::string &channelName, const std::strin
 Channel *Server::getChannels(const std::string &name) {
 	std::map<std::string, Channel*>::iterator it = _channels.find(name);
 	
+	//get channels if they exists
 	if (it != _channels.end()) {
 		return it->second;
 	}
-
+	// if there is no channel create a new one
 	Channel *newChannel = new Channel(name);
 	_channels[name] = newChannel;
 	return newChannel;
@@ -751,4 +752,19 @@ void Server::checkEmptyChannel(const std::string &name) {
 		_channels.erase(it);
 		std::cout << "Canal " << name << " deletado ou vázio." << std::endl;
 	}
+}
+
+bool Server::isValidChannelName(const std::string &name) const {
+    if (name.length() > 200) {
+        return false;
+    }
+    if (name[0] != '&' && name[0] != '#') {
+        return false;
+    }
+    for (std::string::const_iterator it = name.begin(); it != name.end(); it++) {
+        if (*it == ' ' || *it == ',' || *it == '\a') {
+            return false;
+        }
+    }
+    return true;
 }

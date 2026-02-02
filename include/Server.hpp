@@ -69,14 +69,15 @@ private:
   void removeClient(size_t index);
   void processCommand(Client &client, const std::string &command);
 
-  void sendError(Client &client, const std::string &code, const std::string &message);
-  void sendReply(Client &client, const std::string &message);
-  const std::string &getServerName() const;
-  std::vector<std::string> splitCommand(const std::string &command);
-  std::string getClientChannels(const Client &client) const;
-  Client *findClientByNick(const std::string &nick);
-  Channel *getChannels(const std::string &name);
-  void checkEmptyChannel(const std::string &name);
+		void						sendError( Client& client, const std::string& code, const std::string& message );
+		void						sendReply( Client& client, const std::string& message );
+		const std::string&			getServerName( void ) const;
+		std::vector<std::string>	splitCommand( const std::string& command );
+
+		Channel *getChannels(const std::string &name);
+		void checkEmptyChannel(const std::string &name);
+        bool isValidChannelName(const std::string &name) const ;
+
 
 };
 
