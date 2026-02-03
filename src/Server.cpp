@@ -32,22 +32,28 @@ Server::Server() {
 
 Server::Server(const int PORT, const std::string &PASSWORD)
     : _port(PORT), _password(PASSWORD), _server_name("irc.server") {
+  _command_handlers["PASS"] = &Server::handlePASS;
+  _command_handlers["NICK"] = &Server::handleNICK;
+  _command_handlers["USER"] = &Server::handleUSER;
+  _command_handlers["QUIT"] = &Server::handleQUIT;
+
   _message_handlers["PASS"] = &Server::handlePASS;
   _message_handlers["NICK"] = &Server::handleNICK;
   _message_handlers["USER"] = &Server::handleUSER;
   _message_handlers["QUIT"] = &Server::handleQUIT;
+
   _message_handlers["PING"] = &Server::handlePING;
   _message_handlers["JOIN"] = &Server::handleJOIN;
   _message_handlers["PART"] = &Server::handlePART;
   _message_handlers["PRIVMSG"] = &Server::handlePRIVMSG;
   _message_handlers["WHOIS"] = &Server::handleWHOIS;
+
+
   _message_handlers["MODE"] = &Server::handleMODE;
   _message_handlers["TOPIC"] = &Server::handleTOPIC;
-  _message_handlers["KICK"] = &Server::handleKICK;
-  _message_handlers["LIST"] = &Server::handleLIST;
-  _message_handlers["NAMES"] = &Server::handleNAMES;
-
   _message_handlers["INVITE"] = &Server::handleINVITE;
+  _message_handlers["KICK"] = &Server::handleKICK;
+
 }
 
 Server::~Server() {
@@ -259,22 +265,28 @@ void Server::removeClient(size_t index) {
   std::cout << "Client " << clientFd << " removed from poll set" << std::endl;
 }
 
-void Server::processCommand(Client &client, const std::string &raw) {
-  IRCMessage msg(raw);
-  std::string cmd = msg.getCommand();
-  std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
 
-  if (!client.isAuthenticated() && cmd != "PASS" && cmd != "NICK" && cmd != "USER" && cmd != "QUIT") {
-    sendError(client, "451", ":You have not registered");
-    return;
-  }
+void Server::processCommand(Client &client, const std::string &raw)
+{
+	IRCMessage msg(raw);
+	std::string cmd = msg.getCommand();
+	std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
 
-  std::map<std::string, MessageHandler>::iterator it = _message_handlers.find(cmd);
-  if (it != _message_handlers.end()) {
-    (this->*(it->second))(client, msg);
-  } else {
-    sendError(client, "421", cmd + " :Unknown command");
-  }
+	if (!client.isAuthenticated() && cmd != "PASS" && cmd != "NICK" && cmd != "USER" && cmd != "QUIT")
+	{
+		sendError(client, "451", ":You have not registered");
+		return;
+	}
+
+	std::map<std::string, MessageHandler>::iterator handler = _message_handlers.find(cmd);
+	if (it != _message_handlers.end())
+	{
+		(this->*(it->second))(client, msg);
+	}
+	else
+	{
+		sendError(client, "421", cmd + " :Unknown command");
+	}
 }
 
 void Server::sendError(Client &client, const std::string &code, const std::string &message) {
