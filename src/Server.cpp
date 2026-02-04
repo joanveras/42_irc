@@ -149,6 +149,7 @@ void Server::acceptClient() {
   if (CLIENT_SOCKET == ERROR_CODE) {
     close(CLIENT_SOCKET);
     std::cerr << "accept() failed after poll: " << strerror(errno) << std::endl;
+    return;
   }
 
   setNonBlocking(CLIENT_SOCKET);
@@ -224,15 +225,13 @@ void Server::processCommand(Client &client, const std::string &raw)
 		return;
 	}
 
-	std::map<std::string, MessageHandler>::iterator handler = _message_handlers.find(cmd);
-	if (it != _message_handlers.end())
-	{
-		(this->*(it->second))(client, msg);
-	}
-	else
-	{
-		sendError(client, "421", cmd + " :Unknown command");
-	}
+	std::map<std::string, MessageHandler>::iterator it = _message_handlers.find(cmd);
+if (it != _message_handlers.end()) {
+  (this->*(it->second))(client, msg);
+} else {
+  sendError(client, "421", cmd + " :Unknown command");
+}
+
 }
 
 void Server::sendError(Client &client, const std::string &code, const std::string &message) {
@@ -368,6 +367,84 @@ void Server::handleQUIT(Client &client, const std::vector<std::string> &args) {
     }
   }
 }
+
+// ===== Registration handlers (IRCMessage overloads) =====
+
+void Server::handlePASS(Client &client, const IRCMessage &msg) {
+  if (msg.getParamCount() < 1) {
+    sendError(client, "461", "PASS :Not enough parameters");
+    return;
+  }
+  if (client.hasPassword()) {
+    sendError(client, "462", "You may not reregister");
+    return;
+  }
+  if (msg.getParams()[0] == _password) {
+    client.setPassword(true);
+    sendReply(client, "Password accepted");
+    return;
+  }
+  sendError(client, "464", "Password incorrect");
+}
+
+void Server::handleNICK(Client &client, const IRCMessage &msg) {
+  if (msg.getParamCount() < 1) {
+    sendError(client, "431", "No nickname given");
+    return;
+  }
+
+  std::string nickname = msg.getParams()[0];
+
+  if (nickname.empty() || nickname.find(' ') != std::string::npos) {
+    sendError(client, "432", nickname + " :Erroneous nickname");
+    return;
+  }
+
+  for (size_t i = 0; i < _clients.size(); ++i) {
+    if (_clients[i].getFd() != client.getFd() && _clients[i].getNickname() == nickname) {
+      sendError(client, "433", nickname + " :Nickname is already in use");
+      return;
+    }
+  }
+
+  client.setNickname(nickname);
+  sendReply(client, "NICK set to: " + nickname);
+}
+
+void Server::handleUSER(Client &client, const IRCMessage &msg) {
+  // USER <username> <mode> <unused> :<realname>
+  if (msg.getParamCount() < 3 || msg.getTrailing().empty()) {
+    sendError(client, "461", "USER :Not enough parameters");
+    return;
+  }
+
+  if (client.hasUser()) {
+    sendError(client, "462", "You may not reregister");
+    return;
+  }
+
+  client.setUsername(msg.getParams()[0]);
+  client.setRealname(msg.getTrailing());
+  sendReply(client, "USER registered");
+}
+
+void Server::handleQUIT(Client &client, const IRCMessage &msg) {
+  (void)msg;
+
+  for (size_t i = FIRST_CLIENT_INDEX; i < _poll_fds.size(); ++i) {
+    if (_poll_fds[i].fd == client.getFd()) {
+      removeClient(i);
+      break;
+    }
+  }
+}
+
+void Server::handleMODE(Client &client, const IRCMessage &msg) { (void)client; (void)msg; }
+void Server::handleTOPIC(Client &client, const IRCMessage &msg) { (void)client; (void)msg; }
+void Server::handleINVITE(Client &client, const IRCMessage &msg) { (void)client; (void)msg; }
+void Server::handleKICK(Client &client, const IRCMessage &msg) { (void)client; (void)msg; }
+
+
 
 void Server::handlePING(Client &client, const IRCMessage &msg) {
   if (msg.getParamCount() < IRC_PARAM_OFFSET) {
