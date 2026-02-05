@@ -227,11 +227,11 @@ void Server::processCommand(Client &client, const std::string &raw)
 	}
 
 	std::map<std::string, MessageHandler>::iterator it = _message_handlers.find(cmd);
-if (it != _message_handlers.end()) {
-  (this->*(it->second))(client, msg);
-} else {
-  sendError(client, "421", cmd + " :Unknown command");
-}
+  if (it != _message_handlers.end()) {
+    (this->*(it->second))(client, msg);
+  } else {
+    sendError(client, "421", cmd + " :Unknown command");
+  }
 
 }
 
@@ -278,7 +278,7 @@ std::string Server::getClientChannels(const Client &client) const {
 }
 
 Client *Server::findClientByNick(const std::string &nick) {
-  for (size_t i = 0; i < _clients.size(); ++i) {
+  for (std::size_t i = 0; i < _clients.size(); ++i) {
     if (_clients[i].getNickname() == nick) {
       return &_clients[i];
     }
@@ -361,7 +361,7 @@ void Server::handleQUIT(Client &client, const std::vector<std::string> &args) {
 
   std::cout << "Client " << client.getFd() << " quit: " << message << std::endl;
 
-  for (size_t i = FIRST_CLIENT_INDEX; i < _poll_fds.size(); ++i) {
+  for (std::size_t i = FIRST_CLIENT_INDEX; i < _poll_fds.size(); ++i) {
     if (_poll_fds[i].fd == client.getFd()) {
       removeClient(i);
       break;
@@ -432,7 +432,7 @@ void Server::handleUSER(Client &client, const IRCMessage &msg) {
 void Server::handleQUIT(Client &client, const IRCMessage &msg) {
   (void)msg;
 
-  for (size_t i = FIRST_CLIENT_INDEX; i < _poll_fds.size(); ++i) {
+  for (std::size_t i = FIRST_CLIENT_INDEX; i < _poll_fds.size(); ++i) {
     if (_poll_fds[i].fd == client.getFd()) {
       removeClient(i);
       break;
@@ -467,15 +467,16 @@ void Server::handleJOIN(Client &client, const IRCMessage &msg) {
   }
 
   std::string channelName = msg.getParams()[0];
-  if (channelName[0] != '#' && channelName[0] != '&') {
-    sendError(client, "403", channelName + " :No such channel");
-    return;
-  }
+  // validação de nome aqui
+  // if (channelName[0] != '#' && channelName[0] != '&') {
+  //   sendError(client, "403", channelName + " :No such channel");
+  //   return;
+  // }
 
-  /*
-  Channel &channel = getOrCreateChannel(channelName);
-  channel.addClient(client);
-  */
+  Channel *channel = getChannels(channelName);
+  channel->addMember(&client);
+
+  std::cout << "Nome do canal: " << channel->getName() << std::endl;
 
   std::string nick = client.getNickname();
   std::string user = client.getUsername();
