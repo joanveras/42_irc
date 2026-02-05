@@ -38,6 +38,7 @@ public:
 
 private:
   // Type alias for command handler function pointers
+  typedef void (Server::*MessageHandler)(Client &, const IRCMessage &);
   typedef void (Server::*CommandHandler)(Client &, const std::vector<std::string> &);
 
   int _port;
@@ -47,7 +48,13 @@ private:
   std::vector<Client> _clients;
   std::map<std::string, Channel> _channels;
   std::vector<pollfd> _poll_fds;
+  std::map<std::string, MessageHandler> _message_handlers;
   std::map<std::string, CommandHandler> _command_handlers;
+
+  bool canSetMode(const Client& client, const Channel& channel) const;
+  bool canKick(const Client& client, const Channel& channel) const;
+  bool canInvite(const Client& client, const Channel& channel) const;
+  bool canSetTopic(const Client& client, const Channel& channel) const;
 
   void initSocket(const int PORT);
   void setNonBlocking(int fd);
@@ -75,6 +82,14 @@ private:
   void handleMODE(Client &client, const IRCMessage &msg);
   void handleLIST(Client &client, const IRCMessage &msg);
   void handleNAMES(Client &client, const IRCMessage &msg);
+  void handleKICK(Client &client, const IRCMessage &msg);
+  void handleTOPIC(Client &client, const IRCMessage &msg);
+  void handleINVITE(Client &client, const IRCMessage &msg);
+  void handlePASS(Client& client, const IRCMessage& msg);
+  void handleNICK(Client& client, const IRCMessage& msg);
+  void handleUSER(Client& client, const IRCMessage& msg);
+  void handleQUIT(Client& client, const IRCMessage& msg);
+
 
   void sendWelcome(Client &client);
   void sendISupport(Client &client);
