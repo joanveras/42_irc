@@ -58,6 +58,7 @@ private:
 
   void sendError(Client &client, const std::string &code, const std::string &message);
   void sendReply(Client &client, const std::string &message);
+  void sendRaw(Client &client, const std::string &message);
   const std::string &getServerName() const;
   std::vector<std::string> splitCommand(const std::string &command);
   std::string getClientChannels(const Client &client) const;
@@ -67,6 +68,8 @@ private:
   void handleNICK(Client &client, const std::vector<std::string> &args);
   void handleUSER(Client &client, const std::vector<std::string> &args);
   void handleQUIT(Client &client, const std::vector<std::string> &args);
+  void handleTOPIC(Client &client, const IRCMessage &msg);
+  void handleKICK(Client &client, const IRCMessage &msg);
   void handleJOIN(Client &client, const IRCMessage &msg);
   void handlePART(Client &client, const IRCMessage &msg);
   void handlePRIVMSG(Client &client, const IRCMessage &msg);
