@@ -51,6 +51,7 @@ class Channel {
 
         //member management
         void addMember(Client *client, std::string &givenKey);
+        void addMember(Client *client);
         void removeMember(int clientFd);
         void addOperator(int clientFd);
         void removeOperator(int clientFd);

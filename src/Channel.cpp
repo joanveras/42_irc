@@ -122,6 +122,14 @@ void Channel::addMember(Client *client, std::string &givenKey) {
     _members.insert(std::pair<int, Client*>(client->getFd(),client));
 }
 
+void Channel::addMember(Client *client) {
+    if (_modeL && _members.size() >= _limit) {
+        //enviar mensagem em conformidade com RFC 1459
+        return;
+    }
+    _members.insert(std::pair<int, Client*>(client->getFd(),client));
+}
+
 void Channel::removeMember(int clientFd) {
     std::map<int, Client*>::iterator it = _members.find(clientFd);
     if (it != _members.end()) {
