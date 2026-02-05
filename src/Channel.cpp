@@ -189,3 +189,33 @@ void Channel::broadcast(const std::string &message, int excludeFd) {
         }
     }
 }
+
+bool Channel::canJoin(int clientFd, const std::string &givenKey, std::string &errorOut) const {
+    if (_modeI) {
+        std::vector<int>::const_iterator it = std::find(_invitedFds.begin(), _invitedFds.end(), clientFd);
+        if (it == _invitedFds.end()) {
+            errorOut = "473";
+            return false;
+        }
+    }
+    if (_modeL && _members.size() >= _limit) {
+        errorOut = "471";
+        return false;
+    }
+    if (_modeK && _key != givenKey) {
+        errorOut = "475";
+        return false;
+    }
+    return true;
+}
+
+bool Channel::canChangeTopic(int clientFd) const {
+    return !_modeT ? isMember(clientFd) : isOperator(clientFd);
+}
+
+void Channel::inviteMember(int clientFd) {
+    if (std::find(_invitedFds.begin(), _invitedFds.end(), clientFd) == _invitedFds.end()) {
+        _invitedFds.push_back(clientFd);
+    }
+}
+

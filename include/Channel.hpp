@@ -61,6 +61,10 @@ class Channel {
 
         //communication
         void broadcast(const std::string &message, int excludeFd);// enviar mensagem para todos no canal
+
+        bool canJoin(int clientFd, const std::string &giveKey, std::string &errorOut) const ;
+        bool canChangeTopic(int clientFd) const ;
+        void inviteMember(int clientFd);
 };
 
 #endif
