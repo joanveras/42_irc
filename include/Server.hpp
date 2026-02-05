@@ -1,24 +1,21 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#include <algorithm>
 #include <arpa/inet.h>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
-#include <iostream>
 #include <map>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
-#include <sstream>
-#include <stdexcept>
 #include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
+#include <set>
 
 #include "./Channel.hpp"
 #include "./Client.hpp"
@@ -47,6 +44,7 @@ private:
   std::vector<Client> _clients;
   std::map<std::string, Channel> _channels;
   std::vector<pollfd> _poll_fds;
+  std::set<int> _welcomed_clients;
   std::map<std::string, CommandHandler> _command_handlers;
 
   void initSocket(const int PORT);
@@ -84,6 +82,8 @@ private:
   void sendMOTD(Client &client);
 
   void broadcastToChannel(const std::string &channel, const std::string &message, Client *exclude = NULL);
+
+  void checkAndSendWelcome(Client &client);
 };
 
 #endif
