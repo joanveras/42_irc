@@ -17,10 +17,10 @@ class Channel {
         std::vector<int> _operators;
         std::vector<int> _invitedFds;
 
-        bool _modeI;// invite only
-        bool _modeT;// topic restricted to operators
-        bool _modeK;// key required
-        bool _modeL;// user limit active
+        bool _modeI;
+        bool _modeT;
+        bool _modeK;
+        bool _modeL;
 
     public:
         //canonical orthodox form
