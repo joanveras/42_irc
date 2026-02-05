@@ -1,4 +1,7 @@
 #include "../include/Server.hpp"
+#include <sstream>
+#include <algorithm>
+#include <iostream>
 
 namespace {
 // Server constants for socket operations and polling
@@ -189,6 +192,7 @@ void Server::removeClient(size_t index) {
 
   _poll_fds.erase(_poll_fds.begin() + index);
   _clients.erase(_clients.begin() + (index - FIRST_CLIENT_INDEX));
+  _welcomed_clients.erase(clientFd);
 
   std::cout << "Client " << clientFd << " removed from poll set" << std::endl;
 }
@@ -571,9 +575,18 @@ void Server::sendWelcome(Client &client) {
 void Server::sendMOTD(Client &client) {
   std::string nick = client.getNickname();
 
-  sendReply(client, _server_name + " 375 " + nick + " :- " + _server_name + " Message of the day -\r\n");
-  sendReply(client, _server_name + " 372 " + nick + " :Welcome to ft_irc server!\r\n");
-  sendReply(client, _server_name + " 376 " + nick + " :End of /MOTD command\r\n");
+  // 375 RPL_MOTDSTART
+  sendReply(client, "375 " + nick + " :- " + _server_name + " Message of the day -");
+
+  // 372 RPL_MOTD (pode ter várias linhas)
+  sendReply(client, "372 " + nick + " :- ========================================");
+  sendReply(client, "372 " + nick + " :- Welcome to ft_irc - 42 School Project");
+  sendReply(client, "372 " + nick + " :- Server implemented in C++98");
+  sendReply(client, "372 " + nick + " :- Enjoy your stay!");
+  sendReply(client, "372 " + nick + " :- ========================================");
+
+  // 376 RPL_ENDOFMOTD
+  sendReply(client, "376 " + nick + " :End of /MOTD command.");
 }
 
 void Server::sendISupport(Client &client) {
@@ -959,4 +972,13 @@ void Server::handleKICK(Client &client, const IRCMessage &msg) {
   if (channel.isEmpty()) {
     _channels.erase(it);
   }
+}
+
+void Server::checkAndSendWelcome(Client &client) {
+    if (client.isAuthenticated() && 
+        _welcomed_clients.find(client.getFd()) == _welcomed_clients.end()) {
+        
+        _welcomed_clients.insert(client.getFd());
+        sendWelcome(client);
+    }
 }
