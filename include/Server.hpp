@@ -20,9 +20,9 @@
 #include <unistd.h>
 #include <vector>
 
-# include "./Client.hpp"
-# include "Channel.hpp"
-# include "IRCMessage.hpp"
+#include "./Channel.hpp"
+#include "./Client.hpp"
+#include "./IRCMessage.hpp"
 
 class Server {
 
@@ -41,21 +41,15 @@ private:
   typedef void (Server::*MessageHandler)(Client &, const IRCMessage &);
   typedef void (Server::*CommandHandler)(Client &, const std::vector<std::string> &);
 
-	private:
-		int					_port;
-		int					_server_socket;
-		std::string			_password;
-		std::string			_server_name;
-		std::vector<Client>	_clients;
-		std::vector<pollfd>	_poll_fds;
-		std::map<std::string, Channel*> _channels;
-		
-		void						initSocket( const int port );
-		void						setNonBlocking( int fd );
-		void						acceptClient( void );
-		void						handleClientData( Client& client );
-		void						removeClient( size_t index );
-		void						processCommand( Client& client, const std::string& command );
+  int _port;
+  int _server_socket;
+  std::string _password;
+  std::string _server_name;
+  std::vector<Client> _clients;
+  std::map<std::string, Channel*> _channels;
+  std::vector<pollfd> _poll_fds;
+  std::map<std::string, MessageHandler> _message_handlers;
+  std::map<std::string, CommandHandler> _command_handlers;
 
   bool canSetMode(const Client& client, const Channel& channel) const;
   bool canKick(const Client& client, const Channel& channel) const;
@@ -69,16 +63,46 @@ private:
   void removeClient(size_t index);
   void processCommand(Client &client, const std::string &command);
 
-		void						sendError( Client& client, const std::string& code, const std::string& message );
-		void						sendReply( Client& client, const std::string& message );
-		const std::string&			getServerName( void ) const;
-		std::vector<std::string>	splitCommand( const std::string& command );
+  void sendError(Client &client, const std::string &code, const std::string &message);
+  void sendReply(Client &client, const std::string &message);
+  const std::string &getServerName() const;
+  std::vector<std::string> splitCommand(const std::string &command);
+  std::string getClientChannels(const Client &client) const;
+  Client *findClientByNick(const std::string &nick);
 
-		Channel *getChannels(const std::string &name);
-		void checkEmptyChannel(const std::string &name);
-        bool isValidChannelName(const std::string &name) const ;
+  void handlePASS(Client &client, const std::vector<std::string> &args);
+  void handleNICK(Client &client, const std::vector<std::string> &args);
+  void handleUSER(Client &client, const std::vector<std::string> &args);
+  void handleQUIT(Client &client, const std::vector<std::string> &args);
+  void handleJOIN(Client &client, const IRCMessage &msg);
+  void handlePART(Client &client, const IRCMessage &msg);
+  void handlePRIVMSG(Client &client, const IRCMessage &msg);
+  void handlePING(Client &client, const IRCMessage &msg);
+  void handleWHOIS(Client &client, const IRCMessage &msg);
+  void handleMODE(Client &client, const IRCMessage &msg);
+  void handleLIST(Client &client, const IRCMessage &msg);
+  void handleNAMES(Client &client, const IRCMessage &msg);
+  void handleKICK(Client &client, const IRCMessage &msg);
+  void handleTOPIC(Client &client, const IRCMessage &msg);
+  void handleINVITE(Client &client, const IRCMessage &msg);
+  void handlePASS(Client& client, const IRCMessage& msg);
+  void handleNICK(Client& client, const IRCMessage& msg);
+  void handleUSER(Client& client, const IRCMessage& msg);
+  void handleQUIT(Client& client, const IRCMessage& msg);
+  
+  void sendWelcome(Client &client);
+  void sendISupport(Client &client);
+  void sendMOTD(Client &client);
 
+  void broadcastToChannel(const std::string &channel, const std::string &message, Client *exclude = NULL);
 
+  Channel *getChannels(const std::string &name);
+  void checkEmptyChannel(const std::string &name);
+  bool isValidChannelName(const std::string &name) const ;
 };
+
+
+
+
 
 #endif

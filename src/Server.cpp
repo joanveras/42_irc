@@ -1,4 +1,5 @@
 #include "../include/Server.hpp"
+#include "../include/Channel.hpp"
 
 namespace {
 // Server constants for socket operations and polling
@@ -256,7 +257,7 @@ std::vector<std::string> Server::splitCommand(const std::string &command) {
   std::istringstream iss(command);
 
   std::string arg;
-  while ((iss >> arg) != 0) {
+  while (iss >> arg) {
     args.push_back(arg);
   }
   return args;
@@ -265,8 +266,8 @@ std::vector<std::string> Server::splitCommand(const std::string &command) {
 std::string Server::getClientChannels(const Client &client) const {
   std::string result;
 
-  for (std::map<std::string, Channel>::const_iterator it = _channels.begin(); it != _channels.end(); ++it) {
-    if (it->second.hasClient(client.getFd())) {
+  for (std::map<std::string, Channel*>::const_iterator it = _channels.begin(); it != _channels.end(); ++it) {
+    if (it->second->isMember(client.getFd())) {
       if (!result.empty())
         result += " ";
       result += it->first;
@@ -444,8 +445,6 @@ void Server::handleTOPIC(Client &client, const IRCMessage &msg) { (void)client; 
 void Server::handleINVITE(Client &client, const IRCMessage &msg) { (void)client; (void)msg; }
 void Server::handleKICK(Client &client, const IRCMessage &msg) { (void)client; (void)msg; }
 
-
-
 void Server::handlePING(Client &client, const IRCMessage &msg) {
   if (msg.getParamCount() < IRC_PARAM_OFFSET) {
     sendError(client, "409", "No origin specified");
@@ -507,15 +506,15 @@ void Server::handlePART(Client &client, const IRCMessage &msg) {
   std::string channelName = msg.getParams()[0];
   std::string reason = msg.getParamCount() > 1 ? msg.getTrailing() : client.getNickname();
 
-  std::map<std::string, Channel>::iterator it = _channels.find(channelName);
+  std::map<std::string, Channel*>::iterator it = _channels.find(channelName);
   if (it == _channels.end()) {
     sendError(client, "403", channelName + " :No such channel");
     return;
   }
 
-  Channel &channel = it->second;
+  Channel &channel = *it->second;
 
-  if (!channel.hasClient(client.getFd())) {
+  if (!channel.isMember(client.getFd())) {
     sendError(client, "442", channelName + " :You're not on that channel");
     return;
   }
@@ -527,11 +526,12 @@ void Server::handlePART(Client &client, const IRCMessage &msg) {
   partMsg += "\r\n";
 
   channel.broadcast(partMsg, client.getFd());
-  channel.removeClient(client.getFd());
+  channel.removeMember(client.getFd());
 
-  if (channel.isEmpty()) {
-    _channels.erase(it);
-  }
+  this->checkEmptyChannel(it->first);
+  // if (channel.isEmpty()) {
+  //   _channels.erase(it);
+  // }
 
   sendReply(client, partMsg);
 }
@@ -558,15 +558,15 @@ void Server::handlePRIVMSG(Client &client, const IRCMessage &msg) {
   std::string prefix = ":" + client.getNickname() + "!" + client.getUsername() + "@localhost";
 
   if (target[0] == '#' || target[0] == '&') {
-    std::map<std::string, Channel>::iterator it = _channels.find(target);
+    std::map<std::string, Channel*>::iterator it = _channels.find(target);
     if (it == _channels.end()) {
       sendError(client, "403", target + " :No such channel");
       return;
     }
 
-    Channel &channel = it->second;
+    Channel &channel = *it->second;
 
-    if (!channel.hasClient(client.getFd())) {
+    if (!channel.isMember(client.getFd())) {
       sendError(client, "404", target + " :Cannot send to channel");
       return;
     }
@@ -704,32 +704,32 @@ void Server::sendISupport(Client &client) {
   sendReply(client, ":" + _server_name + " 005 " + nick + " " + features2 + ":are also supported\r\n");
 }
 
-void Server::broadcastToChannel(const std::string &channelName, const std::string &rawMessage, Client *exclude) {
-  std::map<std::string, Channel>::iterator it = _channels.find(channelName);
-  if (it == _channels.end())
-    return;
+// void Server::broadcastToChannel(const std::string &channelName, const std::string &rawMessage, Client *exclude) {
+//   std::map<std::string, Channel*>::iterator it = _channels.find(channelName);
+//   if (it == _channels.end())
+//     return;
 
-  Channel &channel = it->second;
+//   Channel &channel = *it->second;
 
-  std::string message = rawMessage;
-  if (message.find("\r\n") == std::string::npos) {
-    message += "\r\n";
-  }
+//   std::string message = rawMessage;
+//   if (message.find("\r\n") == std::string::npos) {
+//     message += "\r\n";
+//   }
 
-  const std::vector<int> &fds = channel.getClientFds();
-  int excludeFd = exclude != NULL ? exclude->getFd() : -1;
+//   const std::vector<int> &fds = channel.getClientFds();
+//   int excludeFd = exclude != NULL ? exclude->getFd() : -1;
 
-  for (size_t i = 0; i < fds.size(); ++i) {
-    if (fds[i] != excludeFd) {
-      send(fds[i], message.c_str(), message.length(), 0);
+//   for (size_t i = 0; i < fds.size(); ++i) {
+//     if (fds[i] != excludeFd) {
+//       send(fds[i], message.c_str(), message.length(), 0);
 
-// Log para debug (opcional)
-#ifdef DEBUG
-      std::cout << "Broadcast to fd " << fds[i] << ": " << message.substr(0, message.find("\r\n")) << std::endl;
-#endif
-    }
-  }
-}
+// // Log para debug (opcional)
+// #ifdef DEBUG
+//       std::cout << "Broadcast to fd " << fds[i] << ": " << message.substr(0, message.find("\r\n")) << std::endl;
+// #endif
+//     }
+//   }
+// }
 
 Channel *Server::getChannels(const std::string &name) {
 	std::map<std::string, Channel*>::iterator it = _channels.find(name);
