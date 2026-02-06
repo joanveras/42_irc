@@ -78,7 +78,15 @@ bool IRCMessage::parse(const std::string &raw) {
     _params.push_back(line.substr(pos, end - pos));
     pos = end + IRC_PARAM_OFFSET;
   }
-
+  //RFC 1459 reference:
+  //the command, and the command parameters (of which there may be up to 15).
+  std::size_t totalParams = _params.size();
+  if (!_trailing.empty()) {
+    totalParams++;
+  }
+  if (totalParams > 15) {
+    return false;
+  }
   _valid = true;
   return true;
 }
