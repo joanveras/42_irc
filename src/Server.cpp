@@ -290,6 +290,9 @@ void Server::removeClient(size_t index) {
 void Server::processCommand(Client &client, const std::string &raw)
 {
 	IRCMessage msg(raw);
+  if (!msg.isValid()) {
+    return;
+  }
 	std::string cmd = msg.getCommand();
 	std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
 
