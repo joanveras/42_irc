@@ -7,6 +7,10 @@ IRCMessage::IRCMessage(const std::string &raw) : _valid(false) {
   parse(raw);
 }
 
+bool IRCMessage::isValid() const {
+    return _valid;
+}
+
 IRCMessage::IRCMessage(const IRCMessage &other)
     : _valid(other._valid),
       _prefix(other._prefix),
