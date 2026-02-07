@@ -1,19 +1,16 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#include <algorithm>
 #include <arpa/inet.h>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
-#include <iostream>
 #include <map>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
-#include <sstream>
-#include <stdexcept>
+#include <set>
 #include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -65,15 +62,14 @@ private:
 
   void sendError(Client &client, const std::string &code, const std::string &message);
   void sendReply(Client &client, const std::string &message);
+  void sendRaw(Client &client, const std::string &message);
   const std::string &getServerName() const;
   std::vector<std::string> splitCommand(const std::string &command);
   std::string getClientChannels(const Client &client) const;
   Client *findClientByNick(const std::string &nick);
 
-  void handlePASS(Client &client, const std::vector<std::string> &args);
-  void handleNICK(Client &client, const std::vector<std::string> &args);
-  void handleUSER(Client &client, const std::vector<std::string> &args);
-  void handleQUIT(Client &client, const std::vector<std::string> &args);
+  void handleTOPIC(Client &client, const IRCMessage &msg);
+  void handleKICK(Client &client, const IRCMessage &msg);
   void handleJOIN(Client &client, const IRCMessage &msg);
   void handlePART(Client &client, const IRCMessage &msg);
   void handlePRIVMSG(Client &client, const IRCMessage &msg);
