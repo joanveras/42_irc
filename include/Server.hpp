@@ -46,7 +46,7 @@ private:
   std::string _password;
   std::string _server_name;
   std::vector<Client> _clients;
-  std::map<std::string, Channel> _channels;
+  std::map<std::string, Channel*> _channels;
   std::vector<pollfd> _poll_fds;
   std::map<std::string, MessageHandler> _message_handlers;
   std::map<std::string, CommandHandler> _command_handlers;
@@ -89,13 +89,20 @@ private:
   void handleNICK(Client& client, const IRCMessage& msg);
   void handleUSER(Client& client, const IRCMessage& msg);
   void handleQUIT(Client& client, const IRCMessage& msg);
-
-
+  
   void sendWelcome(Client &client);
   void sendISupport(Client &client);
   void sendMOTD(Client &client);
 
   void broadcastToChannel(const std::string &channel, const std::string &message, Client *exclude = NULL);
+
+  Channel *getChannels(const std::string &name);
+  void checkEmptyChannel(const std::string &name);
+  bool isValidChannelName(const std::string &name) const ;
 };
+
+
+
+
 
 #endif

@@ -1,61 +1,71 @@
 #ifndef CHANNEL_HPP
 #define CHANNEL_HPP
 
-#include "../include/Client.hpp"
-#include <map>
+#include "Client.hpp"
 #include <string>
 #include <vector>
+#include <map>
 
 class Channel {
+    private:
+        std::string _name;
+        std::string _topic;
+        std::string _key;
+        std::size_t _limit;
 
-public:
-  static const int EXCLUDE_NONE = -1;
+        std::map<int, Client*> _members;
+        std::vector<int> _operators;
+        std::vector<int> _invitedFds;
 
-  Channel();
-  explicit Channel(const std::string &name);
-  ~Channel();
+        bool _modeI;
+        bool _modeT;
+        bool _modeK;
+        bool _modeL;
 
-  const std::string &getName() const;
-  const std::string &getTopic() const;
-  const std::string &getKey() const;
-  std::string getUserList() const;
-  std::vector<int> getClientFds() const;
-  size_t getClientCount() const;
+    public:
+        //canonical orthodox form
+        Channel();
+        Channel(const std::string &name);
+        ~Channel();
+        Channel(const Channel &other);
+        Channel &operator=(const Channel &other);
 
-  void setTopic(const std::string &topic);
-  void setKey(const std::string &key);
-  void setUserLimit(int limit);
+        bool isMember(int clientFd) const ;
+        bool isOperator(int clientFd) const ;
+        bool isInviteOnly() const ;
+        bool isTopicRestricted() const ;
+        bool hasKey() const ;
+        bool isFull() const ;
 
-  bool isInviteOnly() const;
-  bool isTopicRestricted() const;
-  bool hasKey() const;
-  void setInviteOnly(bool state);
-  void setTopicRestricted(bool state);
+        //setters
+        void setName(const std::string &name);
+        void setTopic(const std::string &topic);
+        void setKey(const std::string &key);
+        void setLimit(std::size_t limit);
 
-  void addClient(Client &client);
-  void removeClient(int clientFd);
-  bool hasClient(int clientFd) const;
-  bool isEmpty() const;
+        //getters
+        std::size_t getLimit() const ;
+        const std::string &getKey() const ;
+        const std::string &getTopic() const ;
+        const std::string &getName() const ;
 
-  void addOperator(int clientFd);
-  void removeOperator(int clientFd);
-  bool isOperator(int clientFd) const;
+        //member management
+        void addMember(Client *client, std::string &givenKey);
+        void addMember(Client *client);
+        void removeMember(int clientFd);
+        void addOperator(int clientFd);
+        void removeOperator(int clientFd);
 
-  void broadcast(const std::string &message, int excludeFd = EXCLUDE_NONE);
+        // mode management
+        void setMode(char mode, bool setting);
+        bool getMode(char mode) const ;
 
-  void addInvite(const std::string &nickname);
-  bool isInvited(const std::string &nickname) const;
+        //communication
+        void broadcast(const std::string &message, int excludeFd);// enviar mensagem para todos no canal
 
-private:
-  bool _hasKey;
-  bool _inviteOnly;
-  bool _topicRestricted;
-  int _userLimit;
-  std::map<int, std::string> _clients;
-  std::vector<std::string> _invited;
-  std::string _topic;
-  std::string _name;
-  std::string _key;
+        bool canJoin(int clientFd, const std::string &giveKey, std::string &errorOut) const ;
+        bool canChangeTopic(int clientFd) const ;
+        void inviteMember(int clientFd);
 };
 
 #endif
