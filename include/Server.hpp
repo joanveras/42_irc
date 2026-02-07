@@ -43,15 +43,16 @@ private:
   std::string _password;
   std::string _server_name;
   std::vector<Client> _clients;
-  std::map<std::string, Channel*> _channels;
+  std::map<std::string, Channel *> _channels;
   std::vector<pollfd> _poll_fds;
+  std::set<int> _welcomed_clients;
   std::map<std::string, MessageHandler> _message_handlers;
   std::map<std::string, CommandHandler> _command_handlers;
 
-  bool canSetMode(const Client& client, const Channel& channel) const;
-  bool canKick(const Client& client, const Channel& channel) const;
-  bool canInvite(const Client& client, const Channel& channel) const;
-  bool canSetTopic(const Client& client, const Channel& channel) const;
+  bool canSetMode(const Client &client, const Channel &channel) const;
+  bool canKick(const Client &client, const Channel &channel) const;
+  bool canInvite(const Client &client, const Channel &channel) const;
+  bool canSetTopic(const Client &client, const Channel &channel) const;
 
   void initSocket(const int PORT);
   void setNonBlocking(int fd);
@@ -78,27 +79,23 @@ private:
   void handleMODE(Client &client, const IRCMessage &msg);
   void handleLIST(Client &client, const IRCMessage &msg);
   void handleNAMES(Client &client, const IRCMessage &msg);
-  void handleKICK(Client &client, const IRCMessage &msg);
-  void handleTOPIC(Client &client, const IRCMessage &msg);
-  void handleINVITE(Client &client, const IRCMessage &msg);
-  void handlePASS(Client& client, const IRCMessage& msg);
-  void handleNICK(Client& client, const IRCMessage& msg);
-  void handleUSER(Client& client, const IRCMessage& msg);
-  void handleQUIT(Client& client, const IRCMessage& msg);
-  
+  void handlePASS(Client &client, const IRCMessage &msg);
+  void handleNICK(Client &client, const IRCMessage &msg);
+  void handleUSER(Client &client, const IRCMessage &msg);
+  void handleQUIT(Client &client, const IRCMessage &msg);
+  // void handleINVITE(Client &client, const IRCMessage &msg);
+
   void sendWelcome(Client &client);
   void sendISupport(Client &client);
   void sendMOTD(Client &client);
 
-  void broadcastToChannel(const std::string &channel, const std::string &message, Client *exclude = NULL);
+  void broadcastToChannel(const std::string &channelName, const std::string &message, Client *exclude = NULL);
 
   Channel *getChannels(const std::string &name);
-  void checkEmptyChannel(const std::string &name);
-  bool isValidChannelName(const std::string &name) const ;
+
+  void checkAndSendWelcome(Client &client);
+
+  bool isValidChannelName(const std::string &name) const;
 };
-
-
-
-
 
 #endif
