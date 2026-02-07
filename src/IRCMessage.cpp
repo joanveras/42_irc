@@ -7,6 +7,8 @@ IRCMessage::IRCMessage(const std::string &raw) : _valid(false) {
   parse(raw);
 }
 
+IRCMessage::~IRCMessage() {}
+
 bool IRCMessage::parse(const std::string &raw) {
   _prefix.clear();
   _command.clear();
