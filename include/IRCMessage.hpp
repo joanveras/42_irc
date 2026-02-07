@@ -4,6 +4,7 @@
 #include <cstring>
 #include <iostream>
 #include <vector>
+#include <string>
 
 const std::size_t IRC_MAX_MESSAGE_LENGTH = 512;
 const int IRC_PARAM_OFFSET = 1;
@@ -14,8 +15,10 @@ class IRCMessage {
 public:
   IRCMessage();
   explicit IRCMessage(const std::string &raw);
+  IRCMessage(const IRCMessage &other);
   ~IRCMessage();
-  IRCMessage operator=(IRCMessage const &other);
+
+  IRCMessage &operator=(const IRCMessage &other);
 
   bool parse(const std::string &raw);
   bool isValid() const;

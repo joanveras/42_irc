@@ -7,7 +7,27 @@ IRCMessage::IRCMessage(const std::string &raw) : _valid(false) {
   parse(raw);
 }
 
-IRCMessage::~IRCMessage() {}
+IRCMessage::IRCMessage(const IRCMessage &other)
+    : _valid(other._valid),
+      _prefix(other._prefix),
+      _command(other._command),
+      _trailing(other._trailing),
+      _params(other._params) {
+}
+
+IRCMessage::~IRCMessage() {
+}
+
+IRCMessage &IRCMessage::operator=(const IRCMessage &other) {
+  if (this != &other) {
+    _valid = other._valid;
+    _prefix = other._prefix;
+    _command = other._command;
+    _trailing = other._trailing;
+    _params = other._params;
+  }
+  return *this;
+}
 
 bool IRCMessage::parse(const std::string &raw) {
   _prefix.clear();
