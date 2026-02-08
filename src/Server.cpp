@@ -1,6 +1,7 @@
 #include "../include/Server.hpp"
 #include "../include/Channel.hpp"
 #include <algorithm>
+#include <csignal>
 #include <iostream>
 #include <map>
 #include <sstream>
@@ -17,6 +18,13 @@ const int ONE_BYTE = 1;
 // const int MIN_USER_ARGS = 5;
 // const int REALNAME_ARG = 4;
 const int MAX_CHANNELS_PER_USER = 10;
+
+volatile sig_atomic_t g_shutdown_requested = 0;
+
+void handleSignal(int signalNumber) {
+  (void)signalNumber;
+  g_shutdown_requested = 1;
+}
 } // namespace
 
 Server::Server() {
@@ -39,13 +47,16 @@ Server::Server(const int PORT, const std::string &PASSWORD)
   _message_handlers["LIST"] = &Server::handleLIST;
   _message_handlers["NAMES"] = &Server::handleNAMES;
 
-  // _message_handlers["INVITE"] = &Server::handleINVITE;
+  _message_handlers["INVITE"] = &Server::handleINVITE;
 }
 
 Server::~Server() {
 }
 
 void Server::run() {
+  std::signal(SIGINT, handleSignal);
+  std::signal(SIGTERM, handleSignal);
+
   initSocket(_port);
 
   struct pollfd serverPollFd;
@@ -58,9 +69,19 @@ void Server::run() {
   std::cout << "Server running on port " << _port << std::endl;
   std::cout << "Waiting for connections..." << std::endl;
 
-  while (true) {
+  while (!g_shutdown_requested) {
+    for (size_t index = FIRST_CLIENT_INDEX; index < _poll_fds.size(); ++index) {
+      Client &client = _clients[index - FIRST_CLIENT_INDEX];
+      short events = POLLIN;
+      if (client.hasPendingOutput())
+        events |= POLLOUT;
+      _poll_fds[index].events = events;
+    }
+
     int pollFd = poll(_poll_fds.data(), _poll_fds.size(), POLL_TIMEOUT);
     if (pollFd == ERROR_CODE) {
+      if (errno == EINTR && g_shutdown_requested)
+        break;
       std::cerr << "Poll error: " << strerror(errno) << std::endl;
       continue;
     }
@@ -68,10 +89,21 @@ void Server::run() {
     if ((_poll_fds[SERVER_FD_INDEX].revents & POLLIN) != 0)
       acceptClient();
 
-    for (size_t i = FIRST_CLIENT_INDEX; i < _poll_fds.size(); ++i) {
-      if ((_poll_fds[i].revents & POLLIN) != 0)
-        handleClientData(_clients[i - FIRST_CLIENT_INDEX]);
+    for (size_t index = FIRST_CLIENT_INDEX; index < _poll_fds.size(); ++index) {
+      Client &client = _clients[index - FIRST_CLIENT_INDEX];
+      if ((_poll_fds[index].revents & POLLIN) != 0)
+        handleClientData(client);
+      if ((_poll_fds[index].revents & POLLOUT) != 0)
+        flushClientOutput(client);
     }
+  }
+
+  while (_poll_fds.size() > FIRST_CLIENT_INDEX) {
+    removeClient(FIRST_CLIENT_INDEX);
+  }
+  if (_server_socket != ERROR_CODE) {
+    close(_server_socket);
+    _server_socket = ERROR_CODE;
   }
 }
 
@@ -234,7 +266,7 @@ void Server::sendError(Client &client, const std::string &code, const std::strin
   std::string error = ":" + getServerName() + " " + code + " " +
                       (client.getNickname().empty() ? "*" : client.getNickname()) + " " + message + "\r\n";
 
-  send(client.getFd(), error.c_str(), error.length(), 0);
+  client.queueOutput(error);
 }
 
 void Server::sendReply(Client &client, const std::string &message) {
@@ -250,11 +282,29 @@ void Server::sendReply(Client &client, const std::string &message) {
     reply += "\r\n";
   }
 
-  send(client.getFd(), reply.c_str(), reply.length(), 0);
+  client.queueOutput(reply);
 }
 
 void Server::sendRaw(Client &client, const std::string &message) {
-  send(client.getFd(), message.c_str(), message.length(), 0);
+  client.queueOutput(message);
+}
+
+void Server::flushClientOutput(Client &client) {
+  std::string &outBuffer = client.getOutputBuffer();
+  if (outBuffer.empty())
+    return;
+
+  ssize_t bytesSent = send(client.getFd(), outBuffer.c_str(), outBuffer.size(), 0);
+  if (bytesSent > 0) {
+    client.consumeOutput(static_cast<std::size_t>(bytesSent));
+  } else if (bytesSent == ERROR_CODE && errno != EAGAIN && errno != EWOULDBLOCK) {
+    for (size_t index = FIRST_CLIENT_INDEX; index < _poll_fds.size(); ++index) {
+      if (_poll_fds[index].fd == client.getFd()) {
+        removeClient(index);
+        break;
+      }
+    }
+  }
 }
 
 const std::string &Server::getServerName() const {
@@ -920,6 +970,51 @@ void Server::handleTOPIC(Client &client, const IRCMessage &msg) {
   broadcastToChannel(channelName, topicMsg, &client);
 
   sendRaw(client, topicMsg);
+}
+
+void Server::handleINVITE(Client &client, const IRCMessage &msg) {
+  if (!client.isAuthenticated()) {
+    sendError(client, "451", ":You have not registered");
+    return;
+  }
+
+  if (msg.getParamCount() < 2) {
+    sendError(client, "461", "INVITE :Not enough parameters");
+    return;
+  }
+
+  std::string targetNick = msg.getParams()[0];
+  std::string channelName = msg.getParams()[1];
+
+  std::map<std::string, Channel *>::iterator channelIt = _channels.find(channelName);
+  if (channelIt == _channels.end()) {
+    sendError(client, "403", channelName + " :No such channel");
+    return;
+  }
+
+  Channel *channel = channelIt->second;
+  if (!channel->isMember(client.getFd())) {
+    sendError(client, "442", channelName + " :You're not on that channel");
+    return;
+  }
+
+  if (!channel->isOperator(client.getFd())) {
+    sendError(client, "482", channelName + " :You're not channel operator");
+    return;
+  }
+
+  Client *targetClient = findClientByNick(targetNick);
+  if (targetClient == NULL) {
+    sendError(client, "401", targetNick + " :No such nick/channel");
+    return;
+  }
+
+  channel->inviteMember(targetClient->getFd());
+
+  std::string prefix = ":" + client.getNickname() + "!" + client.getUsername() + "@localhost";
+  std::string inviteMsg = prefix + " INVITE " + targetNick + " :" + channelName + "\r\n";
+  sendRaw(*targetClient, inviteMsg);
+  sendReply(client, "341 " + client.getNickname() + " " + targetNick + " " + channelName);
 }
 
 void Server::handleKICK(Client &client, const IRCMessage &msg) {

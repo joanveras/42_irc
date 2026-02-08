@@ -31,6 +31,10 @@ public:
   void checkAuthentication();
   void appendToBuffer(const std::string &data);
   std::string extractCommand();
+  void queueOutput(const std::string &data);
+  bool hasPendingOutput() const;
+  std::string &getOutputBuffer();
+  void consumeOutput(std::size_t count);
 
 private:
   bool _is_authenticated;
@@ -39,6 +43,7 @@ private:
   bool _has_user;
   int _fd;
   std::string _buffer;
+  std::string _out_buffer;
   std::string _nickname;
   std::string _username;
   std::string _realname;
