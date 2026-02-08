@@ -252,6 +252,7 @@ void Server::removeClient(size_t index) {
   close(_poll_fds[index].fd);
 
   _poll_fds.erase(_poll_fds.begin() + index);
+  delete _clients[index - FIRST_CLIENT_INDEX];
   _clients.erase(_clients.begin() + (index - FIRST_CLIENT_INDEX));
   _welcomed_clients.erase(clientFd);
 
@@ -432,13 +433,14 @@ void Server::handleQUIT(Client &client, const IRCMessage &msg) {
 }
 
 void Server::handlePING(Client &client, const IRCMessage &msg) {
-  if (msg.getParamCount() < IRC_PARAM_OFFSET) {
+  if (msg.getParamCount() < IRC_PARAM_OFFSET && msg.getTrailing().empty()) {
     sendError(client, "409", "No origin specified");
     return;
   }
 
-  std::string pong = "PONG " + _server_name + " :" + msg.getParams()[0] + "\r\n";
-  sendRaw(client, pong);
+  std::string pingToken = msg.getParamCount() >= IRC_PARAM_OFFSET ? msg.getParams()[0] : msg.getTrailing();
+  std::string pong = "PONG " + _server_name + " :" + pingToken;
+  sendReply(client, pong);
 }
 
 void Server::handleJOIN(Client &client, const IRCMessage &msg) {
@@ -453,14 +455,42 @@ void Server::handleJOIN(Client &client, const IRCMessage &msg) {
   }
 
   std::string channelName = msg.getParams()[0];
-  // validação de nome aqui
-  // if (channelName[0] != '#' && channelName[0] != '&') {
-  //   sendError(client, "403", channelName + " :No such channel");
-  //   return;
-  // }
+  if (!isValidChannelName(channelName)) {
+    sendError(client, "403", channelName + " :No such channel");
+    return;
+  }
+
+  bool channelCreated = false;
+  std::map<std::string, Channel *>::iterator channelIt = _channels.find(channelName);
+  if (channelIt == _channels.end()) {
+    channelCreated = true;
+  }
 
   Channel *channel = getChannels(channelName);
+  if (channel->isMember(client.getFd())) {
+    return;
+  }
+
+  if (!channelCreated) {
+    std::string errorCode;
+    std::string channelKey = msg.getParamCount() > 1 ? msg.getParams()[1] : "";
+    if (!channel->canJoin(client.getFd(), channelKey, errorCode)) {
+      if (errorCode == "473")
+        sendError(client, "473", channelName + " :Cannot join channel (+i)");
+      else if (errorCode == "471")
+        sendError(client, "471", channelName + " :Cannot join channel (+l)");
+      else if (errorCode == "475")
+        sendError(client, "475", channelName + " :Cannot join channel (+k)");
+      else
+        sendError(client, errorCode, channelName + " :Cannot join channel");
+      return;
+    }
+  }
+
   channel->addMember(&client);
+  if (channelCreated) {
+    channel->addOperator(client.getFd());
+  }
 
   std::string nick = client.getNickname();
   std::string user = client.getUsername();
@@ -468,12 +498,8 @@ void Server::handleJOIN(Client &client, const IRCMessage &msg) {
 
   std::string joinMsg = ":" + nick + "!" + user + "@" + host + " JOIN :" + channelName + "\r\n";
 
-  channel->broadcast(joinMsg, 0);
-  /*
-  To implement: Mostrar lista de usuarios
-
-  To implement: Mostrar topico do canal
-  */
+  sendRaw(client, joinMsg);
+  channel->broadcast(joinMsg, client.getFd());
 }
 
 void Server::handlePART(Client &client, const IRCMessage &msg) {
@@ -748,7 +774,7 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
 
   Channel *channel = it->second;
 
-  if (msg.getParamCount() == 1) {
+  if (msg.getParamCount() == 1 && msg.getTrailing().empty()) {
     std::string modes = "+";
     std::string modeParams;
 
@@ -804,13 +830,15 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
       if (adding) {
         if (paramIndex < msg.getParamCount()) {
           channel->setKey(msg.getParams()[paramIndex]);
+          channel->setMode('k', true);
           modeChanges += 'k';
-          modeChanges += ' ' + msg.getParams()[paramIndex++];
+          modeChanges += " " + msg.getParams()[paramIndex++];
         } else {
           sendError(client, "461", "MODE k :Not enough parameters");
         }
       } else {
         channel->setKey("");
+        channel->setMode('k', false);
         modeChanges += 'k';
       }
       break;
@@ -826,7 +854,7 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
             channel->removeOperator(targetClient->getFd());
           }
           modeChanges += 'o';
-          modeChanges += ' ' + targetNick;
+          modeChanges += " " + targetNick;
         }
       }
       break;
@@ -834,15 +862,17 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
     case 'l': // user limit
       if (adding) {
         if (paramIndex < msg.getParamCount()) {
-          int limit = atoi(msg.getParams()[paramIndex++].c_str());
-          if (limit > 0) {
-            channel->setMode('l', limit);
+          int limitValue = atoi(msg.getParams()[paramIndex++].c_str());
+          if (limitValue > 0) {
+            channel->setLimit(static_cast<std::size_t>(limitValue));
+            channel->setMode('l', true);
             modeChanges += 'l';
-            modeChanges += ' ' + msg.getParams()[paramIndex - 1];
+            modeChanges += " " + msg.getParams()[paramIndex - 1];
           }
         }
       } else {
         channel->setLimit(0); // Remove limit
+        channel->setMode('l', false);
         modeChanges += 'l';
       }
       break;
@@ -959,7 +989,7 @@ void Server::handleTOPIC(Client &client, const IRCMessage &msg) {
     return;
   }
 
-  if (msg.getParamCount() == 1) {
+  if (msg.getParamCount() == 1 && msg.getTrailing().empty()) {
     std::string topic = channel->getTopic();
     if (topic.empty()) {
       sendReply(client, "331 " + client.getNickname() + " " + channelName + " :No topic is set");
@@ -969,7 +999,7 @@ void Server::handleTOPIC(Client &client, const IRCMessage &msg) {
     return;
   }
 
-  if (channel->getMode('t') && !channel->isOperator(client.getFd())) {
+  if (!msg.getTrailing().empty() && !channel->isOperator(client.getFd())) {
     sendError(client, "482", channelName + " :You're not channel operator");
     return;
   }
