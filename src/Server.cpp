@@ -71,7 +71,7 @@ void Server::run() {
 
   while (!g_shutdown_requested) {
     for (size_t index = FIRST_CLIENT_INDEX; index < _poll_fds.size(); ++index) {
-      Client &client = _clients[index - FIRST_CLIENT_INDEX];
+      Client &client = *_clients[index - FIRST_CLIENT_INDEX];
       short events = POLLIN;
       if (client.hasPendingOutput())
         events |= POLLOUT;
@@ -90,7 +90,7 @@ void Server::run() {
       acceptClient();
 
     for (size_t index = FIRST_CLIENT_INDEX; index < _poll_fds.size(); ++index) {
-      Client &client = _clients[index - FIRST_CLIENT_INDEX];
+      Client &client = *_clients[index - FIRST_CLIENT_INDEX];
       if ((_poll_fds[index].revents & POLLIN) != 0)
         handleClientData(client);
       if ((_poll_fds[index].revents & POLLOUT) != 0)
@@ -185,7 +185,7 @@ void Server::acceptClient() {
 
   setNonBlocking(CLIENT_SOCKET);
 
-  _clients.push_back(Client(CLIENT_SOCKET));
+  _clients.push_back(new Client(CLIENT_SOCKET));
 
   struct pollfd clientPollFd;
   clientPollFd.fd = CLIENT_SOCKET;
@@ -234,6 +234,20 @@ void Server::removeClient(size_t index) {
 
   if (index < FIRST_CLIENT_INDEX || index >= _poll_fds.size())
     return;
+
+  for (std::map<std::string, Channel *>::iterator channelIt = _channels.begin(); channelIt != _channels.end();) {
+    Channel *channel = channelIt->second;
+    if (channel->isMember(clientFd)) {
+      channel->removeMember(clientFd);
+    }
+    if (channel->getMembers().empty()) {
+      delete channel;
+      std::map<std::string, Channel *>::iterator toErase = channelIt++;
+      _channels.erase(toErase);
+      continue;
+    }
+    ++channelIt;
+  }
 
   close(_poll_fds[index].fd);
 
@@ -338,8 +352,8 @@ std::string Server::getClientChannels(const Client &client) const {
 
 Client *Server::findClientByNick(const std::string &nick) {
   for (std::size_t i = 0; i < _clients.size(); ++i) {
-    if (_clients[i].getNickname() == nick) {
-      return &_clients[i];
+    if (_clients[i]->getNickname() == nick) {
+      return _clients[i];
     }
   }
   return NULL;
@@ -377,7 +391,7 @@ void Server::handleNICK(Client &client, const IRCMessage &msg) {
   }
 
   for (size_t i = 0; i < _clients.size(); ++i) {
-    if (_clients[i].getFd() != client.getFd() && _clients[i].getNickname() == nickname) {
+    if (_clients[i]->getFd() != client.getFd() && _clients[i]->getNickname() == nickname) {
       sendError(client, "433", nickname + " :Nickname is already in use");
       return;
     }
