@@ -222,7 +222,7 @@ bool Channel::getMode(char mode) const {
 void Channel::broadcast(const std::string &message, int excludeFd) {
   for (std::map<int, Client *>::iterator it = _members.begin(); it != _members.end(); it++) {
     if (it->first != excludeFd) {
-      send(it->first, message.c_str(), message.length(), 0);
+      it->second->queueOutput(message);
     }
   }
 }
