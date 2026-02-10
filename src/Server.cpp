@@ -32,11 +32,6 @@ Server::Server() {
 
 Server::Server(const int PORT, const std::string &PASSWORD)
     : _port(PORT), _password(PASSWORD), _server_name("irc.server") {
-  _command_handlers["PASS"] = &Server::handlePASS;
-  _command_handlers["NICK"] = &Server::handleNICK;
-  _command_handlers["USER"] = &Server::handleUSER;
-  _command_handlers["QUIT"] = &Server::handleQUIT;
-
   _message_handlers["PASS"] = &Server::handlePASS;
   _message_handlers["NICK"] = &Server::handleNICK;
   _message_handlers["USER"] = &Server::handleUSER;
@@ -47,6 +42,8 @@ Server::Server(const int PORT, const std::string &PASSWORD)
   _message_handlers["PART"] = &Server::handlePART;
   _message_handlers["PRIVMSG"] = &Server::handlePRIVMSG;
   _message_handlers["WHOIS"] = &Server::handleWHOIS;
+  _message_handlers["LIST"] = &Server::handleLIST;
+  _message_handlers["NAMES"] = &Server::handleNAMES;
 
 
   _message_handlers["MODE"] = &Server::handleMODE;
@@ -96,11 +93,23 @@ void Server::run() {
       acceptClient();
 
     for (size_t index = FIRST_CLIENT_INDEX; index < _poll_fds.size(); ++index) {
-      Client &client = *_clients[index - FIRST_CLIENT_INDEX];
-      if ((_poll_fds[index].revents & POLLIN) != 0)
+      int clientFd = _poll_fds[index].fd;
+      short revents = _poll_fds[index].revents;
+
+      if ((revents & POLLIN) != 0) {
+        Client &client = *_clients[index - FIRST_CLIENT_INDEX];
         handleClientData(client);
-      if ((_poll_fds[index].revents & POLLOUT) != 0)
+      }
+
+      if (index >= _poll_fds.size())
+        continue;
+      if (_poll_fds[index].fd != clientFd)
+        continue;
+
+      if ((revents & POLLOUT) != 0) {
+        Client &client = *_clients[index - FIRST_CLIENT_INDEX];
         flushClientOutput(client);
+      }
     }
   }
 
@@ -278,15 +287,15 @@ void Server::processCommand(Client &client, const std::string &raw)
 		return;
 	}
 
-	std::map<std::string, MessageHandler>::iterator handler = _message_handlers.find(cmd);
-	if (it != _message_handlers.end())
-	{
-		(this->*(it->second))(client, msg);
-	}
-	else
-	{
-		sendError(client, "421", cmd + " :Unknown command");
-	}
+    std::map<std::string, MessageHandler>::iterator handler = _message_handlers.find(cmd);
+    if (handler != _message_handlers.end())
+    {
+      (this->*(handler->second))(client, msg);
+    }
+    else
+    {
+      sendError(client, "421", cmd + " :Unknown command");
+    }
 }
 
 void Server::sendError(Client &client, const std::string &code, const std::string &message) {
@@ -658,18 +667,18 @@ void Server::handleWHOIS(Client &client, const IRCMessage &msg) {
 }
 
 void Server::sendWelcome(Client &client) {
-  std::string nick = client.getNickname();
+  const std::string &nick = client.getNickname();
+  const std::string &user = client.getUsername();
 
-  std::string replies[] = {"001 " + nick + " :Welcome to the Internet Relay Network " + nick + "!" +
-                               client.getUsername() + "@localhost",
-                           "002 " + nick + " :Your host is " + _server_name + ", running version 1.0",
-                           "003 " + nick + " " + _server_name + " 1.0 o o",
-                           "004 " + nick + " CHANNELLEN=32 NICKLEN=9 TOPICLEN=307 :are " + "supported by this server"};
+  if (nick.empty() || user.empty())
+    return;
 
-  for (size_t i = 0; i < IRC_WELCOME_COUNT; i++) {
-    sendReply(client, ":" + _server_name + " " + replies[i] + "\r\n");
-  }
+  sendReply(client, "001 " + nick + " :Welcome to the Internet Relay Network " + nick + "!" + user + "@localhost");
+  sendReply(client, "002 " + nick + " :Your host is " + _server_name + ", running version 1.0");
+  sendReply(client, "003 " + nick + " :This server was created " + _server_name);
+  sendReply(client, "004 " + nick + " " + _server_name + " 1.0 o o");
 
+  sendISupport(client);
   sendMOTD(client);
 }
 

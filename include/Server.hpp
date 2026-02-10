@@ -36,7 +36,6 @@ public:
 private:
   // Type alias for command handler function pointers
   typedef void (Server::*MessageHandler)(Client &, const IRCMessage &);
-  typedef void (Server::*CommandHandler)(Client &, const std::vector<std::string> &);
 
   int _port;
   int _server_socket;
@@ -47,7 +46,6 @@ private:
   std::vector<pollfd> _poll_fds;
   std::set<int> _welcomed_clients;
   std::map<std::string, MessageHandler> _message_handlers;
-  std::map<std::string, CommandHandler> _command_handlers;
 
   bool canSetMode(const Client &client, const Channel &channel) const;
   bool canKick(const Client &client, const Channel &channel) const;
