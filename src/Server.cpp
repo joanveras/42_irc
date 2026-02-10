@@ -308,15 +308,6 @@ void Server::processCommand(Client &client, const std::string &raw)
 	{
 		sendError(client, "421", cmd + " :Unknown command");
 	}
-    std::map<std::string, MessageHandler>::iterator handler = _message_handlers.find(cmd);
-    if (handler != _message_handlers.end())
-    {
-      (this->*(handler->second))(client, msg);
-    }
-    else
-    {
-      sendError(client, "421", cmd + " :Unknown command");
-    }
 }
 
 void Server::sendError(Client &client, const std::string &code, const std::string &message) {
