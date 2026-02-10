@@ -215,6 +215,7 @@ void Server::acceptClient() {
 void Server::handleClientData(Client &client) {
   char buffer[BUFFER_SIZE];
   ssize_t bytesRead = 0;
+  const int clientFd = client.getFd();
 
   bytesRead = recv(client.getFd(), buffer, sizeof(buffer) - ONE_BYTE, 0);
   if (bytesRead > 0) {
@@ -230,6 +231,16 @@ void Server::handleClientData(Client &client) {
       std::cout << "Complete command: [" << command << "]" << std::endl;
 
       processCommand(client, command);
+
+      bool stillConnected = false;
+      for (size_t index = FIRST_CLIENT_INDEX; index < _poll_fds.size(); ++index) {
+        if (_poll_fds[index].fd == clientFd) {
+          stillConnected = true;
+          break;
+        }
+      }
+      if (!stillConnected)
+        return;
     }
   } else if (bytesRead == 0) {
     std::cout << "Client disconnected: " << client.getFd() << std::endl;
@@ -445,6 +456,12 @@ void Server::handleUSER(Client &client, const IRCMessage &msg) {
 void Server::handleQUIT(Client &client, const IRCMessage &msg) {
   (void)msg;
 
+  struct linger lingerOption;
+  lingerOption.l_onoff = 1;
+  lingerOption.l_linger = 0;
+  setsockopt(client.getFd(), SOL_SOCKET, SO_LINGER, &lingerOption, sizeof(lingerOption));
+
+  shutdown(client.getFd(), SHUT_RDWR);
   for (std::size_t i = FIRST_CLIENT_INDEX; i < _poll_fds.size(); ++i) {
     if (_poll_fds[i].fd == client.getFd()) {
       removeClient(i);
