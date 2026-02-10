@@ -7,6 +7,30 @@
 #include <string>
 #include <vector>
 
+/*
+
+403 ERR_NOSUCHCHANNEL: "<channel name> :No such channel"
+405 ERR_TOOMANYCHANNELS: "<channel name> :You have joined too many channels"
+471 ERR_CHANNELISFULL: "<channel> :Cannot join channel (+l)"
+473 ERR_INVITEONLYCHAN: "<channel> :Cannot join channel (+i)"
+474 ERR_BANNEDFROMCHAN: "<channel> :Cannot join channel (+b)"
+475 ERR_BADCHANNELKEY: "<channel> :Cannot join channel (+k)"
+476 ERR_BADCHANMASK: "<channel> :Bad Channel Mask"
+
+482 ERR_CHANOPRIVSNEEDED: "<channel> :You're not channel operator"
+441 ERR_USERNOTINCHANNEL: "<nick> <channel> :They aren’t on that channel"
+442 ERR_NOTONCHANNEL: "<channel> :You're not on that channel"
+443 ERR_USERONCHANNEL: "<user> <channel> :is already on channel"
+467 ERR_KEYSET: "<channel> :Channel key already set"
+472 ERR_UNKNOWNMODE: "<char> :is unknown mode char to me"
+
+404 ERR_CANNOTSENDTOCHAN: "<channel name> :Cannot send to channel"
+411 ERR_NORECIPIENT: ":No recipient given (<command>)"
+412 ERR_NOTEXTTOSEND: ":No text to send"
+
+461 ERR_NEEDMOREPARAMS: "<command> :Not enough parameters"
+401 ERR_NOSUCHNICK: "<nickname> :No such nick/channel"
+*/
 class Channel {
 private:
   std::string _name;
@@ -20,6 +44,7 @@ private:
   std::vector<int> _operators;
   std::vector<int> _invitedFds;
 
+  bool _banned;
   bool _modeI;
   bool _modeT;
   bool _modeK;
@@ -39,6 +64,7 @@ public:
   bool isTopicRestricted() const;
   bool hasKey() const;
   bool isFull() const;
+  bool isBanned() const;
 
   // setters
   void setName(const std::string &name);
@@ -48,7 +74,7 @@ public:
 
   // getters
   std::size_t getLimit() const;
-  std::size_t getNumberOfClients() const;
+  std::size_t getMembersNumber() const;
   const std::string &getKey() const;
   const std::string &getTopic() const;
   const std::string &getName() const;
