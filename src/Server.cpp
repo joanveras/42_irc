@@ -32,6 +32,7 @@ Server::Server() {
 
 Server::Server(const int PORT, const std::string &PASSWORD)
     : _port(PORT), _password(PASSWORD), _server_name("irc.server") {
+
   _message_handlers["PASS"] = &Server::handlePASS;
   _message_handlers["NICK"] = &Server::handleNICK;
   _message_handlers["USER"] = &Server::handleUSER;
@@ -298,6 +299,15 @@ void Server::processCommand(Client &client, const std::string &raw)
 		return;
 	}
 
+	std::map<std::string, MessageHandler>::iterator handler = _message_handlers.find(cmd);
+	if (handler != _message_handlers.end())
+	{
+		(this->*(handler->second))(client, msg);
+	}
+	else
+	{
+		sendError(client, "421", cmd + " :Unknown command");
+	}
     std::map<std::string, MessageHandler>::iterator handler = _message_handlers.find(cmd);
     if (handler != _message_handlers.end())
     {
