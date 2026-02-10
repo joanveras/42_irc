@@ -461,7 +461,7 @@ void Server::handleQUIT(Client &client, const IRCMessage &msg) {
   lingerOption.l_linger = 0;
   setsockopt(client.getFd(), SOL_SOCKET, SO_LINGER, &lingerOption, sizeof(lingerOption));
 
-  shutdown(client.getFd(), SHUT_RDWR);
+  // shutdown(client.getFd(), SHUT_RDWR); uso somente no MAC para o teste do Quit
   for (std::size_t i = FIRST_CLIENT_INDEX; i < _poll_fds.size(); ++i) {
     if (_poll_fds[i].fd == client.getFd()) {
       removeClient(i);
