@@ -34,6 +34,7 @@ Server::Server(const int PORT, const std::string &PASSWORD)
     : _port(PORT), _password(PASSWORD), _server_name("irc.server") {
 
   _message_handlers["PASS"] = &Server::handlePASS;
+  _message_handlers["CAP"] = &Server::handleCAP;
   _message_handlers["NICK"] = &Server::handleNICK;
   _message_handlers["USER"] = &Server::handleUSER;
   _message_handlers["QUIT"] = &Server::handleQUIT;
@@ -304,8 +305,7 @@ void Server::processCommand(Client &client, const std::string &raw)
   }
 	std::string cmd = msg.getCommand();
 	std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
-  print(msg);
-	if (!client.isAuthenticated() && cmd != "PASS" && cmd != "NICK" && cmd != "USER" && cmd != "QUIT")
+	if (!client.isAuthenticated() && cmd != "PASS" && cmd != "NICK" && cmd != "USER" && cmd != "QUIT" && cmd != "CAP")
 	{
 		sendError(client, "451", ":You have not registered");
 		return;
@@ -327,6 +327,74 @@ void Server::sendError(Client &client, const std::string &code, const std::strin
                       (client.getNickname().empty() ? "*" : client.getNickname()) + " " + message + "\r\n";
 
   client.queueOutput(error);
+}
+
+void Server::sendError(Client &client, errorCode code, const std::string &context, const std::string &command) {
+  std::ostringstream codeStream;
+  codeStream << static_cast<int>(code);
+
+  std::string message;
+  switch (code) {
+  case ERR_NOSUCHCHANNEL:
+    message = context + " :No such channel";
+    break;
+  case ERR_TOOMANYCHANNELS:
+    message = context + " :You have joined too many channels";
+    break;
+  case ERR_CHANNELISFULL:
+    message = context + " :Cannot join channel (+l)";
+    break;
+  case ERR_INVITEONLYCHAN:
+    message = context + " :Cannot join channel (+i)";
+    break;
+  case ERR_BANNEDFROMCHAN:
+    message = context + " :Cannot join channel (+b)";
+    break;
+  case ERR_BADCHANNELKEY:
+    message = context + " :Cannot join channel (+k)";
+    break;
+  case ERR_BADCHANMASK:
+    message = context + " :Bad Channel Mask";
+    break;
+  case ERR_CHANOPRIVSNEEDED:
+    message = context + " :You're not channel operator";
+    break;
+  case ERR_USERNOTINCHANNEL:
+    message = context + " :They aren't on that channel";
+    break;
+  case ERR_NOTONCHANNEL:
+    message = context + " :You're not on that channel";
+    break;
+  case ERR_USERONCHANNEL:
+    message = context + " :is already on channel";
+    break;
+  case ERR_KEYSET:
+    message = context + " :Channel key already set";
+    break;
+  case ERR_UNKNOWNMODE:
+    message = context + " :is unknown mode char to me";
+    break;
+  case ERR_CANNOTSENDTOCHAN:
+    message = context + " :Cannot send to channel";
+    break;
+  case ERR_NORECIPIENT:
+    message = ":No recipient given (" + command + ")";
+    break;
+  case ERR_NOTEXTTOSEND:
+    message = ":No text to send";
+    break;
+  case ERR_NEEDMOREPARAMS:
+    message = context + " :Not enough parameters";
+    break;
+  case ERR_NOSUCHNICK:
+    message = context + " :No such nick/channel";
+    break;
+  default:
+    message = context;
+    break;
+  }
+
+  sendError(client, codeStream.str(), message);
 }
 
 void Server::sendReply(Client &client, const std::string &message) {
@@ -407,7 +475,7 @@ Client *Server::findClientByNick(const std::string &nick) {
 
 void Server::handlePASS(Client &client, const IRCMessage &msg) {
   if (msg.getParamCount() < 1) {
-    sendError(client, "461", "PASS :Not enough parameters");
+    sendError(client, ERR_NEEDMOREPARAMS, "PASS");
     return;
   }
   if (client.hasPassword()) {
@@ -416,11 +484,43 @@ void Server::handlePASS(Client &client, const IRCMessage &msg) {
   }
   if (msg.getParams()[0] == _password) {
     client.setPassword(true);
-    sendReply(client, "Password accepted");
     checkAndSendWelcome(client);
     return;
   }
   sendError(client, "464", "Password incorrect");
+}
+
+void Server::handleCAP(Client &client, const IRCMessage &msg) {
+  (void)client;
+  if (msg.getParamCount() < 1) {
+    return;
+  }
+
+  std::string subcommand = msg.getParams()[0];
+  std::transform(subcommand.begin(), subcommand.end(), subcommand.begin(), ::toupper);
+
+  if (subcommand == "LS") {
+    sendReply(client, "CAP * LS :");
+    return;
+  }
+
+  if (subcommand == "LIST") {
+    sendReply(client, "CAP * LIST :");
+    return;
+  }
+
+  if (subcommand == "REQ") {
+    std::string requestedCaps = msg.getTrailing();
+    if (requestedCaps.empty() && msg.getParamCount() > 1) {
+      requestedCaps = msg.getParams()[1];
+    }
+    sendReply(client, "CAP * NAK :" + requestedCaps);
+    return;
+  }
+
+  if (subcommand == "END") {
+    return;
+  }
 }
 
 void Server::handleNICK(Client &client, const IRCMessage &msg) {
@@ -444,14 +544,13 @@ void Server::handleNICK(Client &client, const IRCMessage &msg) {
   }
 
   client.setNickname(nickname);
-  sendReply(client, "NICK set to: " + nickname);
   checkAndSendWelcome(client);
 }
 
 void Server::handleUSER(Client &client, const IRCMessage &msg) {
   // USER <username> <mode> <unused> :<realname>
   if (msg.getParamCount() < 3 || msg.getTrailing().empty()) {
-    sendError(client, "461", "USER :Not enough parameters");
+    sendError(client, ERR_NEEDMOREPARAMS, "USER");
     return;
   }
 
@@ -462,7 +561,6 @@ void Server::handleUSER(Client &client, const IRCMessage &msg) {
 
   client.setUsername(msg.getParams()[0]);
   client.setRealname(msg.getTrailing());
-  sendReply(client, "USER registered");
   checkAndSendWelcome(client);
 }
 
@@ -501,13 +599,24 @@ void Server::handleJOIN(Client &client, const IRCMessage &msg) {
   }
 
   if (msg.getParamCount() < IRC_PARAM_OFFSET) {
-    sendError(client, "461", "JOIN :Not enough parameters");
+    sendError(client, ERR_NEEDMOREPARAMS, "JOIN");
     return;
   }
 
   std::string channelName = msg.getParams()[0];
   if (!isValidChannelName(channelName)) {
-    sendError(client, "403", channelName + " :No such channel");
+    sendError(client, ERR_BADCHANMASK, channelName);
+    return;
+  }
+
+  std::size_t currentChannels = 0;
+  for (std::map<std::string, Channel *>::const_iterator it = _channels.begin(); it != _channels.end(); ++it) {
+    if (it->second->isMember(client.getFd())) {
+      ++currentChannels;
+    }
+  }
+  if (currentChannels >= MAX_CHANNELS_PER_USER) {
+    sendError(client, ERR_TOOMANYCHANNELS, channelName);
     return;
   }
 
@@ -521,9 +630,12 @@ void Server::handleJOIN(Client &client, const IRCMessage &msg) {
   if (channel->isMember(client.getFd())) {
     return;
   }
+
   std::string channelKey = msg.getParamCount() > 1 ? msg.getParams()[1] : "";
-  if (!canJoin(client, *channel, channelKey)) {
-      return;
+  errorCode joinError = ERR_NOSUCHCHANNEL;
+  if (!canJoin(client, *channel, channelKey, joinError)) {
+    sendError(client, joinError, channelName);
+    return;
   }
   channel->addMember(&client);
   if (channelCreated) {
@@ -547,7 +659,7 @@ void Server::handlePART(Client &client, const IRCMessage &msg) {
   }
 
   if (msg.getParamCount() < 1) {
-    sendError(client, "461", "PART :Not enough parameters");
+    sendError(client, ERR_NEEDMOREPARAMS, "PART");
     return;
   }
 
@@ -556,14 +668,14 @@ void Server::handlePART(Client &client, const IRCMessage &msg) {
 
   std::map<std::string, Channel *>::iterator it = _channels.find(channelName);
   if (it == _channels.end()) {
-    sendError(client, "403", channelName + " :No such channel");
+    sendError(client, ERR_NOSUCHCHANNEL, channelName);
     return;
   }
 
   Channel &channel = *it->second;
 
   if (!channel.isMember(client.getFd())) {
-    sendError(client, "442", channelName + " :You're not on that channel");
+    sendError(client, ERR_NOTONCHANNEL, channelName);
     return;
   }
 
@@ -590,12 +702,12 @@ void Server::handlePRIVMSG(Client &client, const IRCMessage &msg) {
   }
 
   if (msg.getParamCount() < 1) {
-    sendError(client, "411", ":No recipient given (PRIVMSG)");
+    sendError(client, ERR_NORECIPIENT, "", "PRIVMSG");
     return;
   }
 
   if (msg.getTrailing().empty()) {
-    sendError(client, "412", ":No text to send");
+    sendError(client, ERR_NOTEXTTOSEND, "");
     return;
   }
 
@@ -607,14 +719,14 @@ void Server::handlePRIVMSG(Client &client, const IRCMessage &msg) {
   if (target[0] == '#' || target[0] == '&') {
     std::map<std::string, Channel *>::iterator it = _channels.find(target);
     if (it == _channels.end()) {
-      sendError(client, "403", target + " :No such channel");
+      sendError(client, ERR_NOSUCHCHANNEL, target);
       return;
     }
 
     Channel &channel = *it->second;
 
     if (!channel.isMember(client.getFd())) {
-      sendError(client, "404", target + " :Cannot send to channel");
+      sendError(client, ERR_CANNOTSENDTOCHAN, target);
       return;
     }
 
@@ -629,7 +741,7 @@ void Server::handlePRIVMSG(Client &client, const IRCMessage &msg) {
   } else {
     Client *targetClient = findClientByNick(target);
     if (targetClient == NULL) {
-      sendError(client, "401", target + " :No such nick/channel");
+      sendError(client, ERR_NOSUCHNICK, target);
       return;
     }
 
@@ -658,29 +770,29 @@ void Server::handleWHOIS(Client &client, const IRCMessage &msg) {
 
   // RPL_ENDOFWHOIS
   if (targetClient == NULL) {
-    sendReply(client, " 401 " + senderNick + " " + targetNick + " :No such nick/channel\r\n");
-    sendReply(client, " 318 " + senderNick + " " + targetNick + " :End of /WHOIS list\r\n");
+    sendError(client, ERR_NOSUCHNICK, targetNick);
+    sendReply(client, "318 " + senderNick + " " + targetNick + " :End of /WHOIS list");
     return;
   }
 
   // RPL_WHOISUSER
-  sendReply(client, " 311 " + senderNick + " " + targetNick + " " + targetClient->getUsername() +
-                        " localhost * :" + targetClient->getRealname() + "\r\n");
+  sendReply(client, "311 " + senderNick + " " + targetNick + " " + targetClient->getUsername() + " localhost * :" +
+                        targetClient->getRealname());
 
   // RPL_WHOISSERVER
-  sendReply(client, " 312 " + senderNick + " " + targetNick + " " + " :ft_irc server\r\n");
+  sendReply(client, "312 " + senderNick + " " + targetNick + " " + _server_name + " :ft_irc server");
 
   // RPL_WHOISCHANNELS (canais que o usuario esta)
   std::string channels = getClientChannels(*targetClient);
   if (!channels.empty()) {
-    sendReply(client, " 319 " + senderNick + " " + targetNick + " :" + channels + "\r\n");
+    sendReply(client, "319 " + senderNick + " " + targetNick + " :" + channels);
   }
 
   // RPL_WHOISIDLE (simplificado)
-  sendReply(client, " 317 " + senderNick + " " + targetNick + " 0 0 :seconds idle, signon time\r\n");
+  sendReply(client, "317 " + senderNick + " " + targetNick + " 0 0 :seconds idle, signon time");
 
   // RPL_ENDOFWHOIS
-  sendReply(client, " 318 " + senderNick + " " + targetNick + " :End of /WHOIS list\r\n");
+  sendReply(client, "318 " + senderNick + " " + targetNick + " :End of /WHOIS list");
 }
 
 void Server::sendWelcome(Client &client) {
@@ -747,7 +859,7 @@ void Server::sendISupport(Client &client) {
 
   features += oss.str();
 
-  sendReply(client, _server_name + " 005 " + nick + " " + features + ":are supported by this server\r\n");
+  sendReply(client, "005 " + nick + " " + features + " :are supported by this server");
 
   // Linha adicional para mais features se necessario
   std::string features2 = "STATUSMSG=@+ " // Mensagens para grupos (@ ou +)
@@ -755,7 +867,7 @@ void Server::sendISupport(Client &client) {
                           "EXTBAN=$,& "   // Tipos de extended bans
                           "MONITOR=30 ";  // Maximo de usuarios no MONITOR
 
-  sendReply(client, _server_name + " 005 " + nick + " " + features2 + ":are also supported\r\n");
+  sendReply(client, "005 " + nick + " " + features2 + " :are also supported");
 }
 
 Channel *Server::getChannels(const std::string &name) {
@@ -793,7 +905,7 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
   }
 
   if (msg.getParamCount() < 1) {
-    sendError(client, "461", "MODE :Not enough parameters");
+    sendError(client, ERR_NEEDMOREPARAMS, "MODE");
     return;
   }
 
@@ -806,7 +918,7 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
 
   std::map<std::string, Channel *>::iterator it = _channels.find(target);
   if (it == _channels.end()) {
-    sendError(client, "403", target + " :No such channel");
+    sendError(client, ERR_NOSUCHCHANNEL, target);
     return;
   }
 
@@ -830,7 +942,7 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
   }
 
   if (!channel->isOperator(client.getFd())) {
-    sendError(client, "482", target + " :You're not channel operator");
+    sendError(client, ERR_CHANOPRIVSNEEDED, target);
     return;
   }
 
@@ -866,13 +978,17 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
 
     case 'k': // channel key (password)
       if (adding) {
+        if (channel->hasKey()) {
+          sendError(client, ERR_KEYSET, target);
+          break;
+        }
         if (paramIndex < msg.getParamCount()) {
           channel->setKey(msg.getParams()[paramIndex]);
           channel->setMode('k', true);
           modeChanges += 'k';
           modeChanges += " " + msg.getParams()[paramIndex++];
         } else {
-          sendError(client, "461", "MODE k :Not enough parameters");
+          sendError(client, ERR_NEEDMOREPARAMS, "MODE");
         }
       } else {
         channel->setKey("");
@@ -916,7 +1032,7 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
       break;
 
     default:
-      sendError(client, "472", std::string(1, mode) + " :is unknown mode char to me");
+      sendError(client, ERR_UNKNOWNMODE, std::string(1, mode));
       continue;
     }
   }
@@ -974,7 +1090,7 @@ void Server::handleNAMES(Client &client, const IRCMessage &msg) {
   }
 
   if (msg.getParamCount() < 1) {
-    sendError(client, "461", "NAMES :Not enough parameters");
+    sendError(client, ERR_NEEDMOREPARAMS, "NAMES");
     return;
   }
 
@@ -983,7 +1099,7 @@ void Server::handleNAMES(Client &client, const IRCMessage &msg) {
 
   std::map<std::string, Channel *>::iterator it = _channels.find(channelName);
   if (it == _channels.end()) {
-    sendError(client, "403", channelName + " :No such channel");
+    sendError(client, ERR_NOSUCHCHANNEL, channelName);
     return;
   }
 
@@ -1006,7 +1122,7 @@ void Server::handleTOPIC(Client &client, const IRCMessage &msg) {
   }
 
   if (msg.getParamCount() < 1) {
-    sendError(client, "461", "TOPIC :Not enough parameters");
+    sendError(client, ERR_NEEDMOREPARAMS, "TOPIC");
     return;
   }
 
@@ -1014,7 +1130,7 @@ void Server::handleTOPIC(Client &client, const IRCMessage &msg) {
   std::map<std::string, Channel *>::iterator it = _channels.find(channelName);
 
   if (it == _channels.end()) {
-    sendError(client, "403", channelName + " :No such channel");
+    sendError(client, ERR_NOSUCHCHANNEL, channelName);
     return;
   }
 
@@ -1023,7 +1139,7 @@ void Server::handleTOPIC(Client &client, const IRCMessage &msg) {
     std::cerr << "Channel -> NULL: Server.cpp:891" << std::endl;
 
   if (!channel->isMember(client.getFd())) {
-    sendError(client, "442", channelName + " :You're not on that channel");
+    sendError(client, ERR_NOTONCHANNEL, channelName);
     return;
   }
 
@@ -1038,7 +1154,7 @@ void Server::handleTOPIC(Client &client, const IRCMessage &msg) {
   }
 
   if (!msg.getTrailing().empty() && !channel->isOperator(client.getFd())) {
-    sendError(client, "482", channelName + " :You're not channel operator");
+    sendError(client, ERR_CHANOPRIVSNEEDED, channelName);
     return;
   }
 
@@ -1061,7 +1177,7 @@ void Server::handleINVITE(Client &client, const IRCMessage &msg) {
   }
 
   if (msg.getParamCount() < 2) {
-    sendError(client, "461", "INVITE :Not enough parameters");
+    sendError(client, ERR_NEEDMOREPARAMS, "INVITE");
     return;
   }
 
@@ -1070,24 +1186,29 @@ void Server::handleINVITE(Client &client, const IRCMessage &msg) {
 
   std::map<std::string, Channel *>::iterator channelIt = _channels.find(channelName);
   if (channelIt == _channels.end()) {
-    sendError(client, "403", channelName + " :No such channel");
+    sendError(client, ERR_NOSUCHCHANNEL, channelName);
     return;
   }
 
   Channel *channel = channelIt->second;
   if (!channel->isMember(client.getFd())) {
-    sendError(client, "442", channelName + " :You're not on that channel");
+    sendError(client, ERR_NOTONCHANNEL, channelName);
     return;
   }
 
   if (!channel->isOperator(client.getFd())) {
-    sendError(client, "482", channelName + " :You're not channel operator");
+    sendError(client, ERR_CHANOPRIVSNEEDED, channelName);
     return;
   }
 
   Client *targetClient = findClientByNick(targetNick);
   if (targetClient == NULL) {
-    sendError(client, "401", targetNick + " :No such nick/channel");
+    sendError(client, ERR_NOSUCHNICK, targetNick);
+    return;
+  }
+
+  if (channel->isMember(targetClient->getFd())) {
+    sendError(client, ERR_USERONCHANNEL, targetNick + " " + channelName);
     return;
   }
 
@@ -1106,7 +1227,7 @@ void Server::handleKICK(Client &client, const IRCMessage &msg) {
   }
 
   if (msg.getParamCount() < 2) {
-    sendError(client, "461", "KICK :Not enough parameters");
+    sendError(client, ERR_NEEDMOREPARAMS, "KICK");
     return;
   }
 
@@ -1116,30 +1237,30 @@ void Server::handleKICK(Client &client, const IRCMessage &msg) {
 
   std::map<std::string, Channel *>::iterator it = _channels.find(channelName);
   if (it == _channels.end()) {
-    sendError(client, "403", channelName + " :No such channel");
+    sendError(client, ERR_NOSUCHCHANNEL, channelName);
     return;
   }
 
   Channel *channel = it->second;
 
   if (!channel->isMember(client.getFd())) {
-    sendError(client, "442", channelName + " :You're not on that channel");
+    sendError(client, ERR_NOTONCHANNEL, channelName);
     return;
   }
 
   if (!channel->isOperator(client.getFd())) {
-    sendError(client, "482", channelName + " :You're not channel operator");
+    sendError(client, ERR_CHANOPRIVSNEEDED, channelName);
     return;
   }
 
   Client *targetClient = findClientByNick(targetNick);
   if (!targetClient) {
-    sendError(client, "401", targetNick + " :No such nick/channel");
+    sendError(client, ERR_NOSUCHNICK, targetNick);
     return;
   }
 
   if (!channel->isMember(targetClient->getFd())) {
-    sendError(client, "441", targetNick + " " + channelName + " :They aren't on that channel");
+    sendError(client, ERR_USERNOTINCHANNEL, targetNick + " " + channelName);
     return;
   }
 
@@ -1177,16 +1298,19 @@ void Server::checkAndSendWelcome(Client &client) {
   }
 }
 
-bool Server::canJoin(const Client &client, const Channel &channel, const std::string &key) const {
+bool Server::canJoin(const Client &client, const Channel &channel, const std::string &key, errorCode &error) const {
   if (channel.getMode('i')) {
     if (!channel.isInvitedFd(client.getFd())) {
+      error = ERR_INVITEONLYCHAN;
       return false;
     }
   }
   if (channel.getMode('l') && channel.getMembersNumber() >= channel.getLimit()) {
+    error = ERR_CHANNELISFULL;
     return false;
   }
   if (channel.getMode('k') &&  key != channel.getKey()) {
+    error = ERR_BADCHANNELKEY;
     return false;
   }
   return true;
