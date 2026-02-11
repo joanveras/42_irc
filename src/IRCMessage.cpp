@@ -70,16 +70,24 @@ bool IRCMessage::parse(const std::string &raw) {
   size_t cmdEnd = line.find(' ', pos);
   if (cmdEnd == std::string::npos) {
     _command = line.substr(pos);
+  } else {
+    _command = line.substr(pos, cmdEnd - pos);
+  }
+  // RFC: command não pode ser vazio
+  if (_command.empty())
+    return false;
+  // RFC: command deve ser só letras ou números
+  for (size_t i = 0; i < _command.length(); i++) {
+    if (!std::isalpha(_command[i]) && !std::isdigit(_command[i]))
+      return false;
+  }
+  if (cmdEnd == std::string::npos) {
     _valid = true;
     return true;
   }
-
-  _command = line.substr(pos, cmdEnd - pos);
   pos = cmdEnd + IRC_PARAM_OFFSET;
   while (pos < line.length() && line[pos] == ' ')
     pos++;
-  if (_command.empty())
-    return false;
   // ==== PARAMS ====
   while (pos < line.length()) {
     if (line[pos] == ':') {
