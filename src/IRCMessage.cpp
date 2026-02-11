@@ -49,7 +49,7 @@ bool IRCMessage::parse(const std::string &raw) {
     line.erase(line.size() - IRC_PARAM_OFFSET);
 
   size_t pos = 0;
-  while (pos < line.length() && std::isspace(line[pos]))
+  while (pos < line.length() && line[pos] == ' ')
     pos++;
   if (pos >= line.length())
     return false;
@@ -61,6 +61,8 @@ bool IRCMessage::parse(const std::string &raw) {
       return false;
 
     _prefix = line.substr(pos + IRC_PARAM_OFFSET, end - pos - IRC_PARAM_OFFSET);
+    if (_prefix.empty())
+      return false;
     pos = end + IRC_PARAM_OFFSET;
     while (pos < line.length() && line[pos] == ' ')
       pos++;
