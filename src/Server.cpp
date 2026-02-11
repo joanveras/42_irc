@@ -228,7 +228,7 @@ void Server::handleClientData(Client &client) {
 
     while (client.hasCompleteMessage()) {
       std::string command = client.extractCommand();
-      std::cout << "Complete command: [" << command << "]" << std::endl;
+      //std::cout << "Complete command: [" << command << "]" << std::endl;
 
       processCommand(client, command);
 
@@ -285,13 +285,24 @@ void Server::removeClient(size_t index) {
   std::cout << "Client " << clientFd << " removed from poll set" << std::endl;
 }
 
+void	print(IRCMessage msg) {
+	std::cout << "[ Prefix ] " << msg.getPrefix() << std::endl;
+	std::cout << "[ CMD ] " << msg.getCommand() << std::endl;
+	for (std::size_t i = 0; i < msg.getParams().size(); i++) {
+		std::cout << "[ Params ]" << msg.getParams()[i] << std::endl;
+	}
+  std::cout << "[ TRAILING ] " << msg.getTrailing() << std::endl;
+}
 
 void Server::processCommand(Client &client, const std::string &raw)
 {
 	IRCMessage msg(raw);
+  if (!msg.isValid()) {
+    return;
+  }
 	std::string cmd = msg.getCommand();
 	std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
-
+  print(msg);
 	if (!client.isAuthenticated() && cmd != "PASS" && cmd != "NICK" && cmd != "USER" && cmd != "QUIT")
 	{
 		sendError(client, "451", ":You have not registered");
