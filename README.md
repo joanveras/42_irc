@@ -1,102 +1,108 @@
-# ft_irc – IRC Server in C++98
+# ft_irc
 
-## 🔍 **Code Quality – Clang-Tidy**
+Servidor IRC em C++98, não bloqueante, baseado em `poll()`, seguindo o escopo obrigatório do projeto `ft_irc` da 42.
 
-### Installation
+## Objetivo
+
+Implementar um servidor compatível com cliente IRC real, com:
+- múltiplos clientes simultâneos;
+- autenticação por senha;
+- canais;
+- comandos de operador;
+- troca de mensagens privada e em canal.
+
+## Stack e restrições do subject
+
+- Linguagem: C++98
+- I/O multiplexado: `poll()`
+- Sockets em modo não bloqueante
+- Sem bibliotecas externas
+- Makefile com regras: `all`, `clean`, `fclean`, `re`
+
+## Build
 
 ```bash
-sudo apt-get update
-sudo apt-get install clang-tidy
+make
 ```
 
-### Usage
+Binário gerado: `./ircserv`
+
+## Execução
 
 ```bash
-clang-tidy <file> -- -std=c++98 -Iinclude
+./ircserv <port> <password>
 ```
 
----
+Exemplo:
 
-## 📋 **Current Implementation Summary**
-
-### ✅ **Already Implemented**
-
-- **TCP server** with non-blocking sockets using `poll()` (or equivalent)
-- **Multi-client support** – handles multiple simultaneous connections
-- **Basic client authentication** via `PASS`, `NICK`, and `USER` commands
-- **Command parsing** with buffer aggregation (supports partial messages)
-- **Error handling** with proper IRC-style error responses
-- **Clean client disconnection** handling
-
-### 🏗️ **Core Structure**
-
-```
-Server Class
-├── Socket initialization & binding
-├── poll() event loop
-├── Client connection management
-├── Command routing (PASS, NICK, USER, QUIT)
-└── IRC message formatting
-
-Client Class
-├── Connection state (fd, authentication flags)
-├── User information (nickname, username, realname)
-├── Message buffer management
-└── Authentication status tracking
+```bash
+./ircserv 6667 pass
 ```
 
-### ⚙️ **Key Features Working**
+## Comandos implementados
 
-- ✅ Server listens on specified port with `SO_REUSEADDR`
-- ✅ Non-blocking I/O operations
-- ✅ Password-protected access
-- ✅ Unique nickname validation
-- ✅ Proper IRC message delimiters (`\r\n`)
-- ✅ Graceful client removal on disconnect/QUIT
+- Registro/autenticação:
+`PASS`, `NICK`, `USER`, `QUIT`
+- Básicos:
+`PING`, `WHOIS`, `LIST`, `NAMES`
+- Canais:
+`JOIN`, `PART`, `TOPIC`, `MODE`, `INVITE`, `KICK`
+- Mensagens:
+`PRIVMSG` (usuário e canal)
 
-## 🚨 **Missing (Required by Subject)**
+## Modos de canal implementados
 
-1. **Channel System**
-   - `JOIN` / `PART` / `NAMES` commands
-   - Channel message broadcasting (`PRIVMSG #channel`)
-   - Channel user list management
+- `+i`: invite-only
+- `+t`: tópico restrito a operador
+- `+k`: senha do canal
+- `+o`: operador
+- `+l`: limite de usuários
 
-2. **Operator Commands**
-   - `KICK` – eject client from channel
-   - `INVITE` – invite client to channel
-   - `TOPIC` – view/change channel topic
-   - `MODE` – channel modes:
-     - `i` (invite-only)
-     - `t` (topic restriction)
-     - `k` (channel password)
-     - `o` (operator privilege)
-     - `l` (user limit)
+## Arquitetura
 
-3. **Message Routing**
-   - Private messages between users
-   - Channel message forwarding to all members
+- `Server`: socket TCP, loop principal com `poll()`, roteamento de comandos, replies/erros IRC.
+- `Client`: estado de autenticação, dados de usuário, buffer de entrada e fila de saída.
+- `Channel`: membros, operadores, convidados, modos de canal, broadcast.
+- `IRCMessage`: parser de comandos IRC com suporte a parâmetros e trailing.
 
-4. **Robustness Requirements**
-   - Handling partial commands over slow connections
-   - Proper resource cleanup
-   - Full compliance with reference IRC client
+## Testes incluídos
 
-## 🛠️ **Technical Constraints Met**
+- `verify_irc.sh`: smoke/integration test com `nc` (registro, JOIN, PRIVMSG, INVITE, MODE, TOPIC, KICK, PING e comando parcial).
+- `irc_tester.py`: suíte de testes em Python para validar fluxo de comandos e respostas.
 
-- ✅ C++98 standard compliance
-- ✅ No external libraries (only standard C++98 and system calls)
-- ✅ Single `poll()` for all I/O operations
-- ✅ Non-blocking file descriptors
-- ✅ MacOS compatibility with `fcntl(fd, F_SETFL, O_NONBLOCK)`
-- ✅ Makefile with required rules (NAME, all, clean, fclean, re)
+Execução:
 
-## 📁 **Project Structure**
-
+```bash
+./verify_irc.sh
+python3 irc_tester.py
 ```
+
+## Fluxo de demo (apresentação)
+
+1. Subir servidor: `./ircserv 6667 pass`
+2. Conectar 2 clientes (ex.: `nc 127.0.0.1 6667`)
+3. Registrar cada cliente com:
+`PASS`, `NICK`, `USER`
+4. Criar/entrar em canal:
+`JOIN #test`
+5. Testar mensagem:
+`PRIVMSG #test :hello`
+6. Testar modos/operação:
+`MODE #test +i`, `INVITE`, `TOPIC`, `KICK`, `MODE #test +k segredo`
+
+## Estrutura do projeto
+
+```text
+include/
+  Server.hpp
+  Client.hpp
+  Channel.hpp
+  IRCMessage.hpp
 src/
-├── Server.cpp/hpp # Main server logic
-├── Client.cpp/hpp # Client state management
-├── Channel.cpp/hpp # (TO BE IMPLEMENTED)
-├── main.cpp # Entry point
-└── Makefile
+  Server.cpp
+  Client.cpp
+  Channel.cpp
+  IRCMessage.cpp
+main.cpp
+Makefile
 ```
