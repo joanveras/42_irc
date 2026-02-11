@@ -131,7 +131,7 @@ private:
   std::set<int> _welcomed_clients;
   std::map<std::string, MessageHandler> _message_handlers;
 
-  bool canJoin(const Client &client, const Channel &channel, const std::string &key) const;
+  bool canJoin(const Client &client, const Channel &channel, const std::string &key, errorCode &error) const;
 
   void initSocket(const int PORT);
   void setNonBlocking(int fd);
@@ -141,6 +141,7 @@ private:
   void processCommand(Client &client, const std::string &command);
 
   void sendError(Client &client, const std::string &code, const std::string &message);
+  void sendError(Client &client, errorCode code, const std::string &context, const std::string &command = "");
   void sendReply(Client &client, const std::string &message);
   void sendRaw(Client &client, const std::string &message);
   void flushClientOutput(Client &client);
@@ -160,6 +161,7 @@ private:
   void handleLIST(Client &client, const IRCMessage &msg);
   void handleNAMES(Client &client, const IRCMessage &msg);
   void handlePASS(Client &client, const IRCMessage &msg);
+  void handleCAP(Client &client, const IRCMessage &msg);
   void handleNICK(Client &client, const IRCMessage &msg);
   void handleUSER(Client &client, const IRCMessage &msg);
   void handleQUIT(Client &client, const IRCMessage &msg);
