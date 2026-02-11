@@ -84,6 +84,22 @@ const std::string &Client::getBuffer() const {
   return _buffer;
 }
 
+void Client::queueOutput(const std::string &data) {
+  _out_buffer.append(data);
+}
+
+bool Client::hasPendingOutput() const {
+  return !_out_buffer.empty();
+}
+
+std::string &Client::getOutputBuffer() {
+  return _out_buffer;
+}
+
+void Client::consumeOutput(std::size_t count) {
+  _out_buffer.erase(0, count);
+}
+
 const std::string &Client::getNickname() const {
   return _nickname;
 }

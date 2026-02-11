@@ -12,10 +12,7 @@ bool IRCMessage::isValid() const {
 }
 
 IRCMessage::IRCMessage(const IRCMessage &other)
-    : _valid(other._valid),
-      _prefix(other._prefix),
-      _command(other._command),
-      _trailing(other._trailing),
+    : _valid(other._valid), _prefix(other._prefix), _command(other._command), _trailing(other._trailing),
       _params(other._params) {
 }
 
