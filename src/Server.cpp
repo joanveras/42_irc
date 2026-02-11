@@ -329,7 +329,8 @@ void Server::sendError(Client &client, const std::string &code, const std::strin
   client.queueOutput(error);
 }
 
-void Server::sendError(Client &client, errorCode code, const std::string &context, const std::string &command) {
+void Server::sendError(Client &client, errorCode code, const std::string &context, const std::string &channel,
+                       const std::string &command) {
   std::ostringstream codeStream;
   codeStream << static_cast<int>(code);
 
@@ -360,13 +361,13 @@ void Server::sendError(Client &client, errorCode code, const std::string &contex
     message = context + " :You're not channel operator";
     break;
   case ERR_USERNOTINCHANNEL:
-    message = context + " :They aren't on that channel";
+    message = context + " " + channel + " :They aren't on that channel";
     break;
   case ERR_NOTONCHANNEL:
     message = context + " :You're not on that channel";
     break;
   case ERR_USERONCHANNEL:
-    message = context + " :is already on channel";
+    message = context + " " + channel + " :is already on channel";
     break;
   case ERR_KEYSET:
     message = context + " :Channel key already set";
@@ -702,7 +703,7 @@ void Server::handlePRIVMSG(Client &client, const IRCMessage &msg) {
   }
 
   if (msg.getParamCount() < 1) {
-    sendError(client, ERR_NORECIPIENT, "", "PRIVMSG");
+    sendError(client, ERR_NORECIPIENT, "", "", "PRIVMSG");
     return;
   }
 
@@ -1208,7 +1209,7 @@ void Server::handleINVITE(Client &client, const IRCMessage &msg) {
   }
 
   if (channel->isMember(targetClient->getFd())) {
-    sendError(client, ERR_USERONCHANNEL, targetNick + " " + channelName);
+    sendError(client, ERR_USERONCHANNEL, targetNick, channelName);
     return;
   }
 
@@ -1260,7 +1261,7 @@ void Server::handleKICK(Client &client, const IRCMessage &msg) {
   }
 
   if (!channel->isMember(targetClient->getFd())) {
-    sendError(client, ERR_USERNOTINCHANNEL, targetNick + " " + channelName);
+    sendError(client, ERR_USERNOTINCHANNEL, targetNick, channelName);
     return;
   }
 

@@ -96,13 +96,13 @@ enum errorCode {
   ERR_UNKNOWNMODE = 472, //"<char> :is unknown mode char to me"
 
   //Erros de Comunicação (Comandos PRIVMSG e NOTICE)
-  ERR_CANNOTSENDTOCHAN = 404,
-  ERR_NORECIPIENT = 411,
-  ERR_NOTEXTTOSEND = 412,
+  ERR_CANNOTSENDTOCHAN = 404, //"<channel name> :Cannot send to channel"
+  ERR_NORECIPIENT = 411, //":No recipient given (<command>)"
+  ERR_NOTEXTTOSEND = 412, //":No text to send"
 
   //Erros Genéricos de Comando
-  ERR_NEEDMOREPARAMS = 461,
-  ERR_NOSUCHNICK = 401,
+  ERR_NEEDMOREPARAMS = 461, //"<command> :Not enough parameters"
+  ERR_NOSUCHNICK = 401, //"<nickname> :No such nick/channel"
 };
 
 class Server {
@@ -141,7 +141,8 @@ private:
   void processCommand(Client &client, const std::string &command);
 
   void sendError(Client &client, const std::string &code, const std::string &message);
-  void sendError(Client &client, errorCode code, const std::string &context, const std::string &command = "");
+  void sendError(Client &client, errorCode code, const std::string &context,
+                 const std::string &channel = "", const std::string &command = "");
   void sendReply(Client &client, const std::string &message);
   void sendRaw(Client &client, const std::string &message);
   void flushClientOutput(Client &client);
