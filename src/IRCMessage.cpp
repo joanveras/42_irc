@@ -7,6 +7,10 @@ IRCMessage::IRCMessage(const std::string &raw) : _valid(false) {
   parse(raw);
 }
 
+bool IRCMessage::isValid() const {
+    return _valid;
+}
+
 IRCMessage::IRCMessage(const IRCMessage &other)
     : _valid(other._valid), _prefix(other._prefix), _command(other._command), _trailing(other._trailing),
       _params(other._params) {
@@ -36,30 +40,57 @@ bool IRCMessage::parse(const std::string &raw) {
   if (raw.empty() || raw.length() > IRC_MAX_MESSAGE_LENGTH)
     return false;
 
+  // RFC: NULL bytes are not allowed TOPIC: 2.3.1 Message format
+  if (raw.find('\0') != std::string::npos)
+    return false;
+
   std::string line = raw;
-  if (line[line.size() - IRC_PARAM_OFFSET] == '\r')
+  if (!line.empty() && line[line.size() - IRC_PARAM_OFFSET] == '\r')
     line.erase(line.size() - IRC_PARAM_OFFSET);
 
   size_t pos = 0;
-  if (line[0] == ':') {
-    size_t end = line.find(' ', IRC_PARAM_OFFSET);
+  while (pos < line.length() && line[pos] == ' ')
+    pos++;
+  if (pos >= line.length())
+    return false;
+
+  // ==== PREFIX ====
+  if (line[pos] == ':') {
+    size_t end = line.find(' ', pos);
     if (end == std::string::npos)
       return false;
 
-    _prefix = line.substr(IRC_PARAM_OFFSET, end - IRC_PARAM_OFFSET);
+    _prefix = line.substr(pos + IRC_PARAM_OFFSET, end - pos - IRC_PARAM_OFFSET);
+    if (_prefix.empty())
+      return false;
     pos = end + IRC_PARAM_OFFSET;
+    while (pos < line.length() && line[pos] == ' ')
+      pos++;
   }
 
+  // ==== COMMAND ====
   size_t cmdEnd = line.find(' ', pos);
   if (cmdEnd == std::string::npos) {
     _command = line.substr(pos);
+  } else {
+    _command = line.substr(pos, cmdEnd - pos);
+  }
+  // RFC: command não pode ser vazio
+  if (_command.empty())
+    return false;
+  // RFC: command deve ser só letras ou números
+  for (size_t i = 0; i < _command.length(); i++) {
+    if (!std::isalpha(_command[i]) && !std::isdigit(_command[i]))
+      return false;
+  }
+  if (cmdEnd == std::string::npos) {
     _valid = true;
     return true;
   }
-
-  _command = line.substr(pos, cmdEnd - pos);
   pos = cmdEnd + IRC_PARAM_OFFSET;
-
+  while (pos < line.length() && line[pos] == ' ')
+    pos++;
+  // ==== PARAMS ====
   while (pos < line.length()) {
     if (line[pos] == ':') {
       _trailing = line.substr(pos + IRC_PARAM_OFFSET);
@@ -74,8 +105,20 @@ bool IRCMessage::parse(const std::string &raw) {
 
     _params.push_back(line.substr(pos, end - pos));
     pos = end + IRC_PARAM_OFFSET;
+    while (pos < line.length() && line[pos] == ' ')
+      pos++;
   }
-
+  // ========================
+  // RFC 1459 reference:
+  // the command, and the command parameters (of which there may be up to 15).
+  // ========================
+  std::size_t totalParams = _params.size();
+  if (!_trailing.empty()) {
+    totalParams++;
+  }
+  if (totalParams > 15) {
+    return false;
+  }
   _valid = true;
   return true;
 }
@@ -119,3 +162,124 @@ std::string IRCMessage::formatReply(const std::string &prefix, const std::string
                                     const std::string &message) {
   return ":" + prefix + " " + code + " " + target + " " + message + "\r\n";
 }
+
+
+/*
+bool IRCMessage::parse(const std::string &raw) {
+  _prefix.clear();
+  _command.clear();
+  _params.clear();
+  _trailing.clear();
+  _valid = false;
+
+  // RFC: máximo 512 bytes incluindo CRLF
+  if (raw.empty() || raw.length() > 512)
+    return false;
+
+  // RFC: não pode conter NULL byte
+  if (raw.find('\0') != std::string::npos)
+    return false;
+
+  std::string line = raw;
+
+  // remover '\r' apenas se estiver no final
+  if (!line.empty() && line[line.size() - 1] == '\r')
+    line.erase(line.size() - 1);
+
+  size_t pos = 0;
+
+  // skip espaços iniciais (você já fazia isso — mantido)
+  while (pos < line.length() && std::isspace(line[pos]))
+    pos++;
+
+  if (pos >= line.length())
+    return false;
+
+  // ==== PREFIX ====
+  if (line[pos] == ':') {
+
+    size_t end = line.find(' ', pos);
+
+    if (end == std::string::npos)
+      return false;
+
+    _prefix = line.substr(pos + 1, end - pos - 1);
+
+    // RFC: prefix não pode ser vazio
+    if (_prefix.empty())
+      return false;
+
+    pos = end + 1;
+
+    while (pos < line.length() && line[pos] == ' ')
+      pos++;
+  }
+
+  // ==== COMMAND ====
+
+  size_t cmdEnd = line.find(' ', pos);
+
+  if (cmdEnd == std::string::npos) {
+    _command = line.substr(pos);
+  } else {
+    _command = line.substr(pos, cmdEnd - pos);
+  }
+
+  // RFC: command não pode ser vazio
+  if (_command.empty())
+    return false;
+
+  // RFC: command deve ser só letras ou números
+  for (size_t i = 0; i < _command.length(); i++) {
+    if (!std::isalpha(_command[i]) && !std::isdigit(_command[i]))
+      return false;
+  }
+
+  if (cmdEnd == std::string::npos) {
+    _valid = true;
+    return true;
+  }
+
+  pos = cmdEnd + 1;
+
+  while (pos < line.length() && line[pos] == ' ')
+    pos++;
+
+  // ==== PARAMS ====
+
+  while (pos < line.length()) {
+
+    if (line[pos] == ':') {
+      _trailing = line.substr(pos + 1);
+      break;
+    }
+
+    size_t end = line.find(' ', pos);
+
+    if (end == std::string::npos) {
+      _params.push_back(line.substr(pos));
+      break;
+    }
+
+    _params.push_back(line.substr(pos, end - pos));
+
+    pos = end + 1;
+
+    while (pos < line.length() && line[pos] == ' ')
+      pos++;
+  }
+
+  // RFC: máximo 15 parâmetros total
+  size_t totalParams = _params.size();
+
+  if (!_trailing.empty())
+    totalParams++;
+
+  if (totalParams > 15)
+    return false;
+
+  _valid = true;
+  return true;
+}
+
+*/
