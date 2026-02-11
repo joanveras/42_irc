@@ -39,10 +39,10 @@ private:
   std::size_t _limit;
 
   std::map<int, Client *> _members;
-  std::size_t _numberOfClients;
 
   std::vector<int> _operators;
   std::vector<int> _invitedFds;
+  std::vector<int> _membersBanned;
 
   bool _banned;
   bool _modeI;
@@ -87,6 +87,8 @@ public:
   void removeMember(int clientFd);
   void addOperator(int clientFd);
   void removeOperator(int clientFd);
+  void addBanned(int clientFd);
+  void removeBanned(int clientFd);
 
   // mode management
   void setMode(char mode, bool setting);

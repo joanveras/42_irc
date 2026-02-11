@@ -163,7 +163,6 @@ void Channel::addMember(Client *client) {
     return;
   }
   _members.insert(std::pair<int, Client *>(client->getFd(), client));
-  _numberOfClients++;
 }
 
 void Channel::removeMember(int clientFd) {
@@ -174,7 +173,6 @@ void Channel::removeMember(int clientFd) {
   } else {
     // enviar mensagem em conformidade com RFC 1459
   }
-  _numberOfClients--;
 }
 
 void Channel::addOperator(int clientFd) {
@@ -185,6 +183,19 @@ void Channel::removeOperator(int clientFd) {
   std::vector<int>::iterator it = std::find(_operators.begin(), _operators.end(), clientFd);
   if (it != _operators.end()) {
     _operators.erase(it);
+  } else {
+    // enviar mensagem em conformidade com RFC 1459
+  }
+}
+
+void Channel::addBanned(int clientFd) {
+  _membersBanned.push_back(clientFd);
+}
+
+void Channel::removeBanned(int clientFd) {
+  std::vector<int>::iterator it = std::find(_membersBanned.begin(), _membersBanned.end(), clientFd);
+  if (it != _membersBanned.end()) {
+    _membersBanned.erase(it);
   } else {
     // enviar mensagem em conformidade com RFC 1459
   }
