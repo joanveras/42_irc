@@ -39,18 +39,21 @@ bool IRCMessage::parse(const std::string &raw) {
 
   if (raw.empty() || raw.length() > IRC_MAX_MESSAGE_LENGTH)
     return false;
-  
+
   // RFC: NULL bytes are not allowed TOPIC: 2.3.1 Message format
   if (raw.find('\0') != std::string::npos)
     return false;
 
   std::string line = raw;
-  if (line[line.size() - IRC_PARAM_OFFSET] == '\r')
+  if (!line.empty() && line[line.size() - IRC_PARAM_OFFSET] == '\r')
     line.erase(line.size() - IRC_PARAM_OFFSET);
 
   size_t pos = 0;
   while (pos < line.length() && std::isspace(line[pos]))
     pos++;
+  if (pos >= line.length())
+    return false;
+
   // ==== PREFIX ====
   if (line[pos] == ':') {
     size_t end = line.find(' ', IRC_PARAM_OFFSET);
