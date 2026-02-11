@@ -113,9 +113,14 @@ const std::string Channel::getUserList() const {
   return userList;
 }
 
-std::map<int, Client *> Channel::getMembers() const {
+const std::map<int, Client *> &Channel::getMembers() const {
   return _members;
 }
+
+const std::vector<int> &Channel::getInvitedFds() const {
+  return _invitedFds;
+}
+
 
 bool Channel::isMember(int clientFd) const {
   std::map<int, Client *>::const_iterator it = _members.find(clientFd);
@@ -145,23 +150,11 @@ bool Channel::isBanned() const {
   return _banned;
 }
 
-void Channel::addMember(Client *client, std::string &givenKey) {
-  if (_modeL && _members.size() >= _limit) {
-    // enviar mensagem em conformidade com RFC 1459
-    return;
-  }
-  if (_modeK && _key != givenKey) {
-    // enviar mensagem em conformidade com RFC 1459
-    return;
-  }
-  _members.insert(std::pair<int, Client *>(client->getFd(), client));
-}
-
 void Channel::addMember(Client *client) {
-  if (_modeL && _members.size() >= _limit) {
-    // enviar mensagem em conformidade com RFC 1459
-    return;
-  }
+  // if (_modeL && _members.size() >= _limit) {
+  //   // enviar mensagem em conformidade com RFC 1459
+  //   return;
+  // }
   _members.insert(std::pair<int, Client *>(client->getFd(), client));
 }
 
@@ -241,27 +234,20 @@ void Channel::broadcast(const std::string &message, int excludeFd) {
   }
 }
 
-bool Channel::canJoin(int clientFd, const std::string &givenKey, std::string &errorOut) const {
-  if (_modeI) {
-    std::vector<int>::const_iterator it = std::find(_invitedFds.begin(), _invitedFds.end(), clientFd);
-    if (it == _invitedFds.end()) {
-      errorOut = "473";
-      return false;
-    }
-  }
-  if (_modeL && _members.size() >= _limit) {
-    errorOut = "471";
-    return false;
-  }
-  if (_modeK && _key != givenKey) {
-    errorOut = "475";
-    return false;
-  }
-  return true;
+bool Channel::canInvite(int clientFd) const {
+  return isOperator(clientFd);
 }
 
-bool Channel::canChangeTopic(int clientFd) const {
-  return !_modeT ? isMember(clientFd) : isOperator(clientFd);
+bool Channel::canKick(int clientFd) const {
+  return isOperator(clientFd);
+}
+
+bool Channel::canSetMode(int clientFd) const {
+  return isOperator(clientFd);
+}
+
+bool Channel::canSetTopic(int clientFd) const {
+  return isOperator(clientFd);
 }
 
 void Channel::inviteMember(int clientFd) {

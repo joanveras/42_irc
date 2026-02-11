@@ -79,10 +79,10 @@ public:
   const std::string &getTopic() const;
   const std::string &getName() const;
   const std::string getUserList() const;
-  std::map<int, Client *> getMembers() const;
+  const std::map<int, Client *> &getMembers() const;
+  const std::vector<int> &getInvitedFds() const ;
 
   // member management
-  void addMember(Client *client, std::string &givenKey);
   void addMember(Client *client);
   void removeMember(int clientFd);
   void addOperator(int clientFd);
@@ -97,9 +97,13 @@ public:
   // communication
   void broadcast(const std::string &message, int excludeFd); // enviar mensagem para todos no canal
 
-  bool canJoin(int clientFd, const std::string &giveKey, std::string &errorOut) const;
-  bool canChangeTopic(int clientFd) const;
+  //bool canJoin(int clientFd, const std::string &giveKey, std::string &errorOut) const;
+  //bool canChangeTopic(int clientFd) const;
   void inviteMember(int clientFd);
+  bool canSetMode(int clientFd) const;
+  bool canKick(int clientFd) const;
+  bool canInvite(int clientFd) const;
+  bool canSetTopic(int clientFd) const;
 };
 
 #endif
