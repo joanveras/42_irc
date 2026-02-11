@@ -131,10 +131,7 @@ private:
   std::set<int> _welcomed_clients;
   std::map<std::string, MessageHandler> _message_handlers;
 
-  bool canSetMode(const Client &client, const Channel &channel) const;
-  bool canKick(const Client &client, const Channel &channel) const;
-  bool canInvite(const Client &client, const Channel &channel) const;
-  bool canSetTopic(const Client &client, const Channel &channel) const;
+  bool canJoin(const Client &client, const Channel &channel, const std::string &key) const;
 
   void initSocket(const int PORT);
   void setNonBlocking(int fd);

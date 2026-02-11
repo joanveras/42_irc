@@ -513,19 +513,22 @@ void Server::handleJOIN(Client &client, const IRCMessage &msg) {
   if (!channelCreated) {
     std::string errorCode;
     std::string channelKey = msg.getParamCount() > 1 ? msg.getParams()[1] : "";
-    if (!channel->canJoin(client.getFd(), channelKey, errorCode)) {
-      if (errorCode == "473")
-        sendError(client, "473", channelName + " :Cannot join channel (+i)");
-      else if (errorCode == "471")
-        sendError(client, "471", channelName + " :Cannot join channel (+l)");
-      else if (errorCode == "475")
-        sendError(client, "475", channelName + " :Cannot join channel (+k)");
-      else
-        sendError(client, errorCode, channelName + " :Cannot join channel");
+    
+    if (!canJoin(client, *channel, channelKey)) {
       return;
     }
+    // if (!channel->canJoin(client.getFd(), channelKey, errorCode)) {
+    //   if (errorCode == "473")
+    //     sendError(client, "473", channelName + " :Cannot join channel (+i)");
+    //   else if (errorCode == "471")
+    //     sendError(client, "471", channelName + " :Cannot join channel (+l)");
+    //   else if (errorCode == "475")
+    //     sendError(client, "475", channelName + " :Cannot join channel (+k)");
+    //   else
+    //     sendError(client, errorCode, channelName + " :Cannot join channel");
+    //   return;
+    // }
   }
-
   channel->addMember(&client);
   if (channelCreated) {
     channel->addOperator(client.getFd());
@@ -1176,4 +1179,20 @@ void Server::checkAndSendWelcome(Client &client) {
     _welcomed_clients.insert(client.getFd());
     sendWelcome(client);
   }
+}
+
+bool Server::canJoin(const Client &client, const Channel &channel, const std::string &key) const {
+  if (channel.getMode('i')) {
+    std::vector<int>::const_iterator it = std::find(channel.getInvitedFds().begin(), channel.getInvitedFds().begin(), client.getFd());
+    if (it == channel.getInvitedFds().end()) {
+      return false;
+    }
+  }
+  if (channel.getMode('l') && channel.getMembersNumber() >= channel.getLimit()) {
+    return false;
+  }
+  if (channel.getMode('k') &&  key == channel.getKey()) {
+    return false;
+  }
+  return true;
 }
