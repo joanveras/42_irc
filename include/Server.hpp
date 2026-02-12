@@ -103,6 +103,16 @@ enum errorCode {
   //Erros Genéricos de Comando
   ERR_NEEDMOREPARAMS = 461, //"<command> :Not enough parameters"
   ERR_NOSUCHNICK = 401, //"<nickname> :No such nick/channel"
+
+  //Erros de Registro e Comando Genérico
+  ERR_NOORIGIN = 409, //":No origin specified"
+  ERR_UNKNOWNCOMMAND = 421, //"<command> :Unknown command"
+  ERR_NONICKNAMEGIVEN = 431, //":No nickname given"
+  ERR_ERRONEUSNICKNAME = 432, //"<nick> :Erroneous nickname"
+  ERR_NICKNAMEINUSE = 433, //"<nick> :Nickname is already in use"
+  ERR_NOTREGISTERED = 451, //":You have not registered"
+  ERR_ALREADYREGISTRED = 462, //":You may not reregister"
+  ERR_PASSWDMISMATCH = 464, //":Password incorrect"
 };
 
 class Server {

@@ -319,7 +319,7 @@ void Server::processCommand(Client &client, const std::string &raw)
 	std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
 	if (!client.isAuthenticated() && cmd != "PASS" && cmd != "NICK" && cmd != "USER" && cmd != "QUIT" && cmd != "CAP")
 	{
-		sendError(client, "451", ":You have not registered");
+		sendError(client, ERR_NOTREGISTERED, "");
 		return;
 	}
 
@@ -330,7 +330,7 @@ void Server::processCommand(Client &client, const std::string &raw)
 	}
 	else
 	{
-		sendError(client, "421", cmd + " :Unknown command");
+		sendError(client, ERR_UNKNOWNCOMMAND, cmd);
 	}
 }
 
@@ -401,6 +401,30 @@ void Server::sendError(Client &client, errorCode code, const std::string &contex
     break;
   case ERR_NOSUCHNICK:
     message = context + " :No such nick/channel";
+    break;
+  case ERR_NOORIGIN:
+    message = ":No origin specified";
+    break;
+  case ERR_UNKNOWNCOMMAND:
+    message = context + " :Unknown command";
+    break;
+  case ERR_NONICKNAMEGIVEN:
+    message = ":No nickname given";
+    break;
+  case ERR_ERRONEUSNICKNAME:
+    message = context + " :Erroneous nickname";
+    break;
+  case ERR_NICKNAMEINUSE:
+    message = context + " :Nickname is already in use";
+    break;
+  case ERR_NOTREGISTERED:
+    message = ":You have not registered";
+    break;
+  case ERR_ALREADYREGISTRED:
+    message = ":You may not reregister";
+    break;
+  case ERR_PASSWDMISMATCH:
+    message = ":Password incorrect";
     break;
   default:
     message = context;
@@ -492,7 +516,7 @@ void Server::handlePASS(Client &client, const IRCMessage &msg) {
     return;
   }
   if (client.hasPassword()) {
-    sendError(client, "462", "You may not reregister");
+    sendError(client, ERR_ALREADYREGISTRED, "");
     return;
   }
   if (msg.getParams()[0] == _password) {
@@ -500,7 +524,7 @@ void Server::handlePASS(Client &client, const IRCMessage &msg) {
     checkAndSendWelcome(client);
     return;
   }
-  sendError(client, "464", "Password incorrect");
+  sendError(client, ERR_PASSWDMISMATCH, "");
 }
 
 void Server::handleCAP(Client &client, const IRCMessage &msg) {
@@ -538,20 +562,20 @@ void Server::handleCAP(Client &client, const IRCMessage &msg) {
 
 void Server::handleNICK(Client &client, const IRCMessage &msg) {
   if (msg.getParamCount() < 1) {
-    sendError(client, "431", "No nickname given");
+    sendError(client, ERR_NONICKNAMEGIVEN, "");
     return;
   }
 
   std::string nickname = msg.getParams()[0];
 
   if (nickname.empty() || nickname.find(' ') != std::string::npos) {
-    sendError(client, "432", nickname + " :Erroneous nickname");
+    sendError(client, ERR_ERRONEUSNICKNAME, nickname);
     return;
   }
 
   for (size_t i = 0; i < _clients.size(); ++i) {
     if (_clients[i]->getFd() != client.getFd() && _clients[i]->getNickname() == nickname) {
-      sendError(client, "433", nickname + " :Nickname is already in use");
+      sendError(client, ERR_NICKNAMEINUSE, nickname);
       return;
     }
   }
@@ -568,7 +592,7 @@ void Server::handleUSER(Client &client, const IRCMessage &msg) {
   }
 
   if (client.hasUser()) {
-    sendError(client, "462", "You may not reregister");
+    sendError(client, ERR_ALREADYREGISTRED, "");
     return;
   }
 
@@ -596,7 +620,7 @@ void Server::handleQUIT(Client &client, const IRCMessage &msg) {
 
 void Server::handlePING(Client &client, const IRCMessage &msg) {
   if (msg.getParamCount() < IRC_PARAM_OFFSET && msg.getTrailing().empty()) {
-    sendError(client, "409", "No origin specified");
+    sendError(client, ERR_NOORIGIN, "");
     return;
   }
 
@@ -607,7 +631,7 @@ void Server::handlePING(Client &client, const IRCMessage &msg) {
 
 void Server::handleJOIN(Client &client, const IRCMessage &msg) {
   if (!client.isAuthenticated()) {
-    sendError(client, "451", ":You have not registered");
+    sendError(client, ERR_NOTREGISTERED, "");
     return;
   }
 
@@ -667,7 +691,7 @@ void Server::handleJOIN(Client &client, const IRCMessage &msg) {
 
 void Server::handlePART(Client &client, const IRCMessage &msg) {
   if (!client.isAuthenticated()) {
-    sendError(client, "451", ":You have not registered");
+    sendError(client, ERR_NOTREGISTERED, "");
     return;
   }
 
@@ -710,7 +734,7 @@ void Server::handlePART(Client &client, const IRCMessage &msg) {
 
 void Server::handlePRIVMSG(Client &client, const IRCMessage &msg) {
   if (!client.isAuthenticated()) {
-    sendError(client, "451", ":You have not registered");
+    sendError(client, ERR_NOTREGISTERED, "");
     return;
   }
 
@@ -767,12 +791,12 @@ void Server::handlePRIVMSG(Client &client, const IRCMessage &msg) {
 
 void Server::handleWHOIS(Client &client, const IRCMessage &msg) {
   if (!client.isAuthenticated()) {
-    sendError(client, "451", ":You have not registered");
+    sendError(client, ERR_NOTREGISTERED, "");
     return;
   }
 
   if (msg.getParamCount() < 1) {
-    sendError(client, "431", ":No nickname given");
+    sendError(client, ERR_NONICKNAMEGIVEN, "");
     return;
   }
 
@@ -913,7 +937,7 @@ bool Server::isValidChannelName(const std::string &name) const {
 
 void Server::handleMODE(Client &client, const IRCMessage &msg) {
   if (!client.isAuthenticated()) {
-    sendError(client, "451", ":You have not registered");
+    sendError(client, ERR_NOTREGISTERED, "");
     return;
   }
 
@@ -1059,7 +1083,7 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
 
 void Server::handleLIST(Client &client, const IRCMessage &msg) {
   if (!client.isAuthenticated()) {
-    sendError(client, "451", ":You have not registered");
+    sendError(client, ERR_NOTREGISTERED, "");
     return;
   }
 
@@ -1098,7 +1122,7 @@ void Server::handleLIST(Client &client, const IRCMessage &msg) {
 
 void Server::handleNAMES(Client &client, const IRCMessage &msg) {
   if (!client.isAuthenticated()) {
-    sendError(client, "451", ":You have not registered");
+    sendError(client, ERR_NOTREGISTERED, "");
     return;
   }
 
@@ -1130,7 +1154,7 @@ void Server::handleNAMES(Client &client, const IRCMessage &msg) {
 
 void Server::handleTOPIC(Client &client, const IRCMessage &msg) {
   if (!client.isAuthenticated()) {
-    sendError(client, "451", ":You have not registered");
+    sendError(client, ERR_NOTREGISTERED, "");
     return;
   }
 
@@ -1185,7 +1209,7 @@ void Server::handleTOPIC(Client &client, const IRCMessage &msg) {
 
 void Server::handleINVITE(Client &client, const IRCMessage &msg) {
   if (!client.isAuthenticated()) {
-    sendError(client, "451", ":You have not registered");
+    sendError(client, ERR_NOTREGISTERED, "");
     return;
   }
 
@@ -1235,7 +1259,7 @@ void Server::handleINVITE(Client &client, const IRCMessage &msg) {
 
 void Server::handleKICK(Client &client, const IRCMessage &msg) {
   if (!client.isAuthenticated()) {
-    sendError(client, "451", ":You have not registered");
+    sendError(client, ERR_NOTREGISTERED, "");
     return;
   }
 
