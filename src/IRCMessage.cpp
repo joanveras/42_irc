@@ -45,7 +45,10 @@ bool IRCMessage::parse(const std::string &raw) {
     line.erase(line.size() - IRC_PARAM_OFFSET);
 
   size_t pos = 0;
-  if (line[0] == ':') {
+  while (pos < line.length() && std::isspace(line[pos]))
+    pos++;
+  // ==== PREFIX ====
+  if (line[pos] == ':') {
     size_t end = line.find(' ', IRC_PARAM_OFFSET);
     if (end == std::string::npos)
       return false;
@@ -54,6 +57,7 @@ bool IRCMessage::parse(const std::string &raw) {
     pos = end + IRC_PARAM_OFFSET;
   }
 
+  // ==== COMMAND ====
   size_t cmdEnd = line.find(' ', pos);
   if (cmdEnd == std::string::npos) {
     _command = line.substr(pos);
@@ -63,7 +67,10 @@ bool IRCMessage::parse(const std::string &raw) {
 
   _command = line.substr(pos, cmdEnd - pos);
   pos = cmdEnd + IRC_PARAM_OFFSET;
+  while (pos < line.length() && line[pos] == ' ')
+    pos++;
 
+  // ==== PARAMS ====
   while (pos < line.length()) {
     if (line[pos] == ':') {
       _trailing = line.substr(pos + IRC_PARAM_OFFSET);
@@ -78,9 +85,13 @@ bool IRCMessage::parse(const std::string &raw) {
 
     _params.push_back(line.substr(pos, end - pos));
     pos = end + IRC_PARAM_OFFSET;
+    while (pos < line.length() && line[pos] == ' ')
+      pos++;
   }
-  //RFC 1459 reference:
-  //the command, and the command parameters (of which there may be up to 15).
+  // ========================
+  // RFC 1459 reference:
+  // the command, and the command parameters (of which there may be up to 15).
+  // ========================
   std::size_t totalParams = _params.size();
   if (!_trailing.empty()) {
     totalParams++;
