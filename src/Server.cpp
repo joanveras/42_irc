@@ -32,6 +32,7 @@ Server::Server() {
 
 Server::Server(const int PORT, const std::string &PASSWORD)
     : _port(PORT), _password(PASSWORD), _server_name("irc.server") {
+
   _message_handlers["PASS"] = &Server::handlePASS;
   _message_handlers["NICK"] = &Server::handleNICK;
   _message_handlers["USER"] = &Server::handleUSER;
@@ -310,15 +311,15 @@ void Server::processCommand(Client &client, const std::string &raw)
 		return;
 	}
 
-    std::map<std::string, MessageHandler>::iterator handler = _message_handlers.find(cmd);
-    if (handler != _message_handlers.end())
-    {
-      (this->*(handler->second))(client, msg);
-    }
-    else
-    {
-      sendError(client, "421", cmd + " :Unknown command");
-    }
+	std::map<std::string, MessageHandler>::iterator handler = _message_handlers.find(cmd);
+	if (handler != _message_handlers.end())
+	{
+		(this->*(handler->second))(client, msg);
+	}
+	else
+	{
+		sendError(client, "421", cmd + " :Unknown command");
+	}
 }
 
 void Server::sendError(Client &client, const std::string &code, const std::string &message) {
@@ -520,23 +521,10 @@ void Server::handleJOIN(Client &client, const IRCMessage &msg) {
   if (channel->isMember(client.getFd())) {
     return;
   }
-
-  if (!channelCreated) {
-    std::string errorCode;
-    std::string channelKey = msg.getParamCount() > 1 ? msg.getParams()[1] : "";
-    if (!channel->canJoin(client.getFd(), channelKey, errorCode)) {
-      if (errorCode == "473")
-        sendError(client, "473", channelName + " :Cannot join channel (+i)");
-      else if (errorCode == "471")
-        sendError(client, "471", channelName + " :Cannot join channel (+l)");
-      else if (errorCode == "475")
-        sendError(client, "475", channelName + " :Cannot join channel (+k)");
-      else
-        sendError(client, errorCode, channelName + " :Cannot join channel");
+  std::string channelKey = msg.getParamCount() > 1 ? msg.getParams()[1] : "";
+  if (!canJoin(client, *channel, channelKey)) {
       return;
-    }
   }
-
   channel->addMember(&client);
   if (channelCreated) {
     channel->addOperator(client.getFd());
@@ -588,8 +576,7 @@ void Server::handlePART(Client &client, const IRCMessage &msg) {
   channel.broadcast(partMsg, client.getFd());
   channel.removeMember(client.getFd());
 
-  if (channel.getNumberOfClients() == 0) {
-    std::cout << "\033[41m" << "Channel deleted:" << "\033[0m " << channel.getName() << std::endl;
+  if (channel.getMembersNumber() == 0) {
     _channels.erase(it);
   }
 
@@ -971,7 +958,7 @@ void Server::handleLIST(Client &client, const IRCMessage &msg) {
 
     // RPL_LIST (322)
     std::ostringstream userCount;
-    userCount << channel->getNumberOfClients();
+    userCount << channel->getMembersNumber();
 
     sendReply(client, "322 " + senderNick + " " + it->first + " " + userCount.str() + " :" + topic);
   }
@@ -1163,8 +1150,7 @@ void Server::handleKICK(Client &client, const IRCMessage &msg) {
 
   channel->removeMember(targetClient->getFd());
 
-  if (channel->getNumberOfClients() == 0) {
-    std::cout << "\033[41m" << "Channel deleted:" << "\033[0m " << channel->getName() << std::endl;
+  if (channel->getMembersNumber() == 0) {
     _channels.erase(it);
   }
 }
@@ -1189,4 +1175,19 @@ void Server::checkAndSendWelcome(Client &client) {
     _welcomed_clients.insert(client.getFd());
     sendWelcome(client);
   }
+}
+
+bool Server::canJoin(const Client &client, const Channel &channel, const std::string &key) const {
+  if (channel.getMode('i')) {
+    if (!channel.isInvitedFd(client.getFd())) {
+      return false;
+    }
+  }
+  if (channel.getMode('l') && channel.getMembersNumber() >= channel.getLimit()) {
+    return false;
+  }
+  if (channel.getMode('k') &&  key != channel.getKey()) {
+    return false;
+  }
+  return true;
 }
