@@ -84,10 +84,10 @@ void Server::run() {
     }
 
     int pollFd = poll(_poll_fds.data(), _poll_fds.size(), POLL_TIMEOUT);
-    if (pollFd == ERROR_CODE) {
-      if (errno == EINTR && g_shutdown_requested)
+    if (pollFd < 0) {
+      if (g_shutdown_requested) {
         break;
-      std::cerr << "Poll error: " << strerror(errno) << std::endl;
+      }
       continue;
     }
 
@@ -101,6 +101,7 @@ void Server::run() {
       if ((revents & POLLIN) != 0) {
         Client &client = *_clients[index - FIRST_CLIENT_INDEX];
         handleClientData(client);
+        continue ;
       }
 
       if (index >= _poll_fds.size())
@@ -194,9 +195,12 @@ void Server::acceptClient() {
   // accept() is a blocking call by default - it will pause the program until a
   // client connects. But the poll() in Server::run() handles it
   const int CLIENT_SOCKET = accept(_server_socket, addr, &clientLen);
-  if (CLIENT_SOCKET == ERROR_CODE) {
+  if (CLIENT_SOCKET < 0) {
+    if (g_shutdown_requested) {
+      return;
+    }
     close(CLIENT_SOCKET);
-    std::cerr << "accept() failed after poll: " << strerror(errno) << std::endl;
+    std::cerr << "accept() failed after poll" << std::endl;
     return;
   }
 
@@ -265,8 +269,10 @@ void Server::handleClientData(Client &client) {
       }
     }
     return;
-  } else if (bytesRead == ERROR_CODE && errno != EAGAIN)
-    std::cerr << "Read error for client " << client.getFd() << ": " << strerror(errno) << std::endl;
+  }
+  else {
+    return;
+  }
 }
 
 void Server::removeClient(size_t index) {
@@ -462,7 +468,7 @@ void Server::flushClientOutput(Client &client) {
   ssize_t bytesSent = send(client.getFd(), outBuffer.c_str(), outBuffer.size(), 0);
   if (bytesSent > 0) {
     client.consumeOutput(static_cast<std::size_t>(bytesSent));
-  } else if (bytesSent == ERROR_CODE && errno != EAGAIN && errno != EWOULDBLOCK) {
+  } else if (bytesSent < 0) {
     for (size_t index = FIRST_CLIENT_INDEX; index < _poll_fds.size(); ++index) {
       if (_poll_fds[index].fd == client.getFd()) {
         removeClient(index);
@@ -582,6 +588,7 @@ void Server::handleNICK(Client &client, const IRCMessage &msg) {
   }
 
   client.setNickname(nickname);
+  sendReply(client, "NICK set to: " + nickname);
   checkAndSendWelcome(client);
 }
 
@@ -599,6 +606,7 @@ void Server::handleUSER(Client &client, const IRCMessage &msg) {
 
   client.setUsername(msg.getParams()[0]);
   client.setRealname(msg.getTrailing());
+  sendReply(client, "USER registered");
   checkAndSendWelcome(client);
 }
 

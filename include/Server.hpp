@@ -2,7 +2,6 @@
 #define SERVER_HPP
 
 #include <arpa/inet.h>
-#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
