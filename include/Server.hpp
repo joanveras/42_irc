@@ -96,13 +96,23 @@ enum errorCode {
   ERR_UNKNOWNMODE = 472, //"<char> :is unknown mode char to me"
 
   //Erros de Comunicação (Comandos PRIVMSG e NOTICE)
-  ERR_CANNOTSENDTOCHAN = 404,
-  ERR_NORECIPIENT = 411,
-  ERR_NOTEXTTOSEND = 412,
+  ERR_CANNOTSENDTOCHAN = 404, //"<channel name> :Cannot send to channel"
+  ERR_NORECIPIENT = 411, //":No recipient given (<command>)"
+  ERR_NOTEXTTOSEND = 412, //":No text to send"
 
   //Erros Genéricos de Comando
-  ERR_NEEDMOREPARAMS = 461,
-  ERR_NOSUCHNICK = 401,
+  ERR_NEEDMOREPARAMS = 461, //"<command> :Not enough parameters"
+  ERR_NOSUCHNICK = 401, //"<nickname> :No such nick/channel"
+
+  //Erros de Registro e Comando Genérico
+  ERR_NOORIGIN = 409, //":No origin specified"
+  ERR_UNKNOWNCOMMAND = 421, //"<command> :Unknown command"
+  ERR_NONICKNAMEGIVEN = 431, //":No nickname given"
+  ERR_ERRONEUSNICKNAME = 432, //"<nick> :Erroneous nickname"
+  ERR_NICKNAMEINUSE = 433, //"<nick> :Nickname is already in use"
+  ERR_NOTREGISTERED = 451, //":You have not registered"
+  ERR_ALREADYREGISTRED = 462, //":You may not reregister"
+  ERR_PASSWDMISMATCH = 464, //":Password incorrect"
 };
 
 class Server {
@@ -131,7 +141,7 @@ private:
   std::set<int> _welcomed_clients;
   std::map<std::string, MessageHandler> _message_handlers;
 
-  bool canJoin(const Client &client, const Channel &channel, const std::string &key) const;
+  bool canJoin(const Client &client, const Channel &channel, const std::string &key, errorCode &error) const;
 
   void initSocket(const int PORT);
   void setNonBlocking(int fd);
@@ -141,6 +151,8 @@ private:
   void processCommand(Client &client, const std::string &command);
 
   void sendError(Client &client, const std::string &code, const std::string &message);
+  void sendError(Client &client, errorCode code, const std::string &context,
+                 const std::string &channel = "", const std::string &command = "");
   void sendReply(Client &client, const std::string &message);
   void sendRaw(Client &client, const std::string &message);
   void flushClientOutput(Client &client);
@@ -160,6 +172,7 @@ private:
   void handleLIST(Client &client, const IRCMessage &msg);
   void handleNAMES(Client &client, const IRCMessage &msg);
   void handlePASS(Client &client, const IRCMessage &msg);
+  void handleCAP(Client &client, const IRCMessage &msg);
   void handleNICK(Client &client, const IRCMessage &msg);
   void handleUSER(Client &client, const IRCMessage &msg);
   void handleQUIT(Client &client, const IRCMessage &msg);
