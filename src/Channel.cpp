@@ -1,10 +1,5 @@
 #include "../include/Channel.hpp"
 #include <algorithm>
-#include <cstddef>
-#include <map>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <utility>
 
 Channel::Channel() {
   _name = "";
@@ -15,7 +10,6 @@ Channel::Channel() {
   _modeT = false;
   _modeK = false;
   _modeL = false;
-  _banned = false;
 }
 
 Channel::Channel(const std::string &name) {
@@ -49,7 +43,6 @@ Channel &Channel::operator=(const Channel &other) {
     this->_modeT = other._modeT;
     this->_modeK = other._modeK;
     this->_modeL = other._modeL;
-    this->_banned = other._banned;
     this->_members = other._members;
     this->_operators = other._operators;
     this->_invitedFds = other._invitedFds;
@@ -97,15 +90,17 @@ const std::string Channel::getUserList() const {
   std::string userList;
 
   for (std::map<int, Client *>::const_iterator it = _members.begin(); it != _members.end(); ++it) {
-    if (it == _members.begin()) {
-      userList += it->second->getUsername();
-      continue;
-    }
-
     if (it->second != NULL) {
       std::string prefix;
+
       if (isOperator(it->second->getFd()))
         prefix = "@";
+
+      if (it == _members.begin()) {
+        userList = prefix + it->second->getUsername();
+        continue;
+      }
+
       userList += " " + prefix + it->second->getUsername();
     }
   }
@@ -120,7 +115,6 @@ const std::map<int, Client *> &Channel::getMembers() const {
 const std::vector<int> &Channel::getInvitedFds() const {
   return _invitedFds;
 }
-
 
 bool Channel::isMember(int clientFd) const {
   std::map<int, Client *>::const_iterator it = _members.find(clientFd);
@@ -146,15 +140,7 @@ bool Channel::isInviteOnly() const {
   return _modeI;
 }
 
-bool Channel::isBanned() const {
-  return _banned;
-}
-
 void Channel::addMember(Client *client) {
-  // if (_modeL && _members.size() >= _limit) {
-  //   // enviar mensagem em conformidade com RFC 1459
-  //   return;
-  // }
   _members.insert(std::pair<int, Client *>(client->getFd(), client));
 }
 
@@ -163,8 +149,6 @@ void Channel::removeMember(int clientFd) {
   if (it != _members.end()) {
     _members.erase(it);
     this->removeOperator(clientFd);
-  } else {
-    // enviar mensagem em conformidade com RFC 1459
   }
 }
 
@@ -176,8 +160,6 @@ void Channel::removeOperator(int clientFd) {
   std::vector<int>::iterator it = std::find(_operators.begin(), _operators.end(), clientFd);
   if (it != _operators.end()) {
     _operators.erase(it);
-  } else {
-    // enviar mensagem em conformidade com RFC 1459
   }
 }
 
@@ -189,27 +171,25 @@ void Channel::removeBanned(int clientFd) {
   std::vector<int>::iterator it = std::find(_membersBanned.begin(), _membersBanned.end(), clientFd);
   if (it != _membersBanned.end()) {
     _membersBanned.erase(it);
-  } else {
-    // enviar mensagem em conformidade com RFC 1459
   }
 }
 
 void Channel::setMode(char mode, bool setting) {
   switch (mode) {
-  case 'i':
-    _modeI = setting;
-    break;
-  case 't':
-    _modeT = setting;
-    break;
-  case 'k':
-    _modeK = setting;
-    break;
-  case 'l':
-    _modeL = setting;
-    break;
-  default:
-    break;
+    case 'i':
+      _modeI = setting;
+      break;
+    case 't':
+      _modeT = setting;
+      break;
+    case 'k':
+      _modeK = setting;
+      break;
+    case 'l':
+      _modeL = setting;
+      break;
+    default:
+      break;
   }
 }
 
@@ -254,4 +234,10 @@ void Channel::inviteMember(int clientFd) {
   if (std::find(_invitedFds.begin(), _invitedFds.end(), clientFd) == _invitedFds.end()) {
     _invitedFds.push_back(clientFd);
   }
+}
+
+bool Channel::isInvitedFd(int clientFd) const {
+  std::vector<int>::const_iterator it = std::find(_invitedFds.begin(), _invitedFds.end(), clientFd);
+
+  return it != _invitedFds.end() ? true : false;
 }

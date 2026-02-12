@@ -281,6 +281,7 @@ void Server::removeClient(size_t index) {
       channel->removeMember(clientFd);
     }
     if (channel->getMembers().empty()) {
+      std::cout << "\033[41m" << "Channel deleted:" << "\033[0m " << channel->getName() << std::endl;
       delete channel;
       std::map<std::string, Channel *>::iterator toErase = channelIt++;
       _channels.erase(toErase);
@@ -316,7 +317,6 @@ void Server::processCommand(Client &client, const std::string &raw)
   }
 	std::string cmd = msg.getCommand();
 	std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
-  print(msg);
 	if (!client.isAuthenticated() && cmd != "PASS" && cmd != "NICK" && cmd != "USER" && cmd != "QUIT" && cmd != "CAP")
 	{
 		sendError(client, "451", ":You have not registered");
@@ -644,13 +644,11 @@ void Server::handleJOIN(Client &client, const IRCMessage &msg) {
     return;
   }
 
-  if (!channelCreated) {
-    std::string channelKey = msg.getParamCount() > 1 ? msg.getParams()[1] : "";
-    errorCode joinError = ERR_NOSUCHCHANNEL;
-    if (!canJoin(client, *channel, channelKey, joinError)) {
-      sendError(client, joinError, channelName);
-      return;
-    }
+  std::string channelKey = msg.getParamCount() > 1 ? msg.getParams()[1] : "";
+  errorCode joinError = ERR_NOSUCHCHANNEL;
+  if (!canJoin(client, *channel, channelKey, joinError)) {
+    sendError(client, joinError, channelName);
+    return;
   }
   channel->addMember(&client);
   if (channelCreated) {
@@ -892,7 +890,7 @@ Channel *Server::getChannels(const std::string &name) {
     return it->second;
   }
 
-  std::cout << "\033[41m" << "Novo canal criado:" << "\033[0m " << name << std::endl;
+  std::cout << "\033[42m" << "Channel created:" << "\033[0m " << name << std::endl;
   Channel *newChannel = new Channel(name);
   _channels[name] = newChannel;
   return newChannel;
@@ -1315,8 +1313,7 @@ void Server::checkAndSendWelcome(Client &client) {
 
 bool Server::canJoin(const Client &client, const Channel &channel, const std::string &key, errorCode &error) const {
   if (channel.getMode('i')) {
-    std::vector<int>::const_iterator it = std::find(channel.getInvitedFds().begin(), channel.getInvitedFds().end(), client.getFd());
-    if (it == channel.getInvitedFds().end()) {
+    if (!channel.isInvitedFd(client.getFd())) {
       error = ERR_INVITEONLYCHAN;
       return false;
     }
@@ -1325,7 +1322,7 @@ bool Server::canJoin(const Client &client, const Channel &channel, const std::st
     error = ERR_CHANNELISFULL;
     return false;
   }
-  if (channel.getMode('k') && key != channel.getKey()) {
+  if (channel.getMode('k') &&  key != channel.getKey()) {
     error = ERR_BADCHANNELKEY;
     return false;
   }
