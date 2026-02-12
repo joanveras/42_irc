@@ -509,7 +509,9 @@ void Server::handleJOIN(Client &client, const IRCMessage &msg) {
   if (channel->isMember(client.getFd())) {
     return;
   }
-
+  if (!canJoin(client, *channel, channelKey)) {
+      return;
+  }
   if (!channelCreated) {
     std::string errorCode;
     std::string channelKey = msg.getParamCount() > 1 ? msg.getParams()[1] : "";
@@ -1192,7 +1194,20 @@ bool Server::canJoin(const Client &client, const Channel &channel, const std::st
     return false;
   }
   if (channel.getMode('k') &&  key == channel.getKey()) {
+    std::cout << "client: " << client.getNickname() << std::endl;
+    std::cout << "key: " << key << std::endl;
     return false;
   }
+
+  // if (!channel->canJoin(client.getFd(), channelKey, errorCode)) {
+    //   if (errorCode == "473")
+    //     sendError(client, "473", channelName + " :Cannot join channel (+i)");
+    //   else if (errorCode == "471")
+    //     sendError(client, "471", channelName + " :Cannot join channel (+l)");
+    //   else if (errorCode == "475")
+    //     sendError(client, "475", channelName + " :Cannot join channel (+k)");
+    //   else
+    //     sendError(client, errorCode, channelName + " :Cannot join channel");
+    //   return;
   return true;
 }
