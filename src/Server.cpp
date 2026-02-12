@@ -521,6 +521,7 @@ void Server::handlePASS(Client &client, const IRCMessage &msg) {
   }
   if (msg.getParams()[0] == _password) {
     client.setPassword(true);
+    sendReply(client, "Password accepted");
     checkAndSendWelcome(client);
     return;
   }
