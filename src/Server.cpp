@@ -268,6 +268,7 @@ void Server::removeClient(size_t index) {
       channel->removeMember(clientFd);
     }
     if (channel->getMembers().empty()) {
+      std::cout << "\033[41m" << "Channel deleted:" << "\033[0m " << channel->getName() << std::endl;
       delete channel;
       std::map<std::string, Channel *>::iterator toErase = channelIt++;
       _channels.erase(toErase);
@@ -764,7 +765,7 @@ Channel *Server::getChannels(const std::string &name) {
     return it->second;
   }
 
-  std::cout << "\033[41m" << "Novo canal criado:" << "\033[0m " << name << std::endl;
+  std::cout << "\033[42m" << "Channel created:" << "\033[0m " << name << std::endl;
   Channel *newChannel = new Channel(name);
   _channels[name] = newChannel;
   return newChannel;
