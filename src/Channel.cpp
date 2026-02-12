@@ -1,10 +1,5 @@
 #include "../include/Channel.hpp"
 #include <algorithm>
-#include <cstddef>
-#include <map>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <utility>
 
 Channel::Channel() {
   _name = "";
@@ -119,7 +114,6 @@ const std::vector<int> &Channel::getInvitedFds() const {
   return _invitedFds;
 }
 
-
 bool Channel::isMember(int clientFd) const {
   std::map<int, Client *>::const_iterator it = _members.find(clientFd);
 
@@ -180,20 +174,20 @@ void Channel::removeBanned(int clientFd) {
 
 void Channel::setMode(char mode, bool setting) {
   switch (mode) {
-  case 'i':
-    _modeI = setting;
-    break;
-  case 't':
-    _modeT = setting;
-    break;
-  case 'k':
-    _modeK = setting;
-    break;
-  case 'l':
-    _modeL = setting;
-    break;
-  default:
-    break;
+    case 'i':
+      _modeI = setting;
+      break;
+    case 't':
+      _modeT = setting;
+      break;
+    case 'k':
+      _modeK = setting;
+      break;
+    case 'l':
+      _modeL = setting;
+      break;
+    default:
+      break;
   }
 }
 
@@ -238,4 +232,10 @@ void Channel::inviteMember(int clientFd) {
   if (std::find(_invitedFds.begin(), _invitedFds.end(), clientFd) == _invitedFds.end()) {
     _invitedFds.push_back(clientFd);
   }
+}
+
+bool Channel::isInvitedFd(int clientFd) const {
+  std::vector<int>::const_iterator it = std::find(_invitedFds.begin(), _invitedFds.end(), clientFd);
+
+  return it != _invitedFds.end() ? true : false;
 }

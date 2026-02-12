@@ -2,7 +2,6 @@
 #define CHANNEL_HPP
 
 #include "Client.hpp"
-#include <cstddef>
 #include <map>
 #include <string>
 #include <vector>
@@ -63,6 +62,7 @@ public:
   bool isTopicRestricted() const;
   bool hasKey() const;
   bool isFull() const;
+  bool isInvitedFd(int clientFd) const;
 
   // setters
   void setName(const std::string &name);
