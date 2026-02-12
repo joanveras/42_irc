@@ -1167,8 +1167,7 @@ void Server::checkAndSendWelcome(Client &client) {
 
 bool Server::canJoin(const Client &client, const Channel &channel, const std::string &key) const {
   if (channel.getMode('i')) {
-    std::vector<int>::const_iterator it = std::find(channel.getInvitedFds().begin(), channel.getInvitedFds().begin(), client.getFd());
-    if (it == channel.getInvitedFds().end()) {
+    if (!channel.isInvitedFd(client.getFd())) {
       return false;
     }
   }
