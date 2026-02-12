@@ -98,15 +98,17 @@ const std::string Channel::getUserList() const {
   std::string userList;
 
   for (std::map<int, Client *>::const_iterator it = _members.begin(); it != _members.end(); ++it) {
-    if (it == _members.begin()) {
-      userList += it->second->getUsername();
-      continue;
-    }
-
     if (it->second != NULL) {
       std::string prefix;
+
       if (isOperator(it->second->getFd()))
         prefix = "@";
+
+      if (it == _members.begin()) {
+        userList = prefix + it->second->getUsername();
+        continue;
+      }
+
       userList += " " + prefix + it->second->getUsername();
     }
   }
