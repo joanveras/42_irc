@@ -234,6 +234,12 @@ void Server::handleClientData(Client &client) {
 
       processCommand(client, command);
 
+      // Flush immediately so short-lived nc clients still receive numerics/errors
+      // before closing the connection.
+      if (client.hasPendingOutput()) {
+        flushClientOutput(client);
+      }
+
       bool stillConnected = false;
       for (size_t index = FIRST_CLIENT_INDEX; index < _poll_fds.size(); ++index) {
         if (_poll_fds[index].fd == clientFd) {
@@ -246,6 +252,12 @@ void Server::handleClientData(Client &client) {
     }
   } else if (bytesRead == 0) {
     std::cout << "Client disconnected: " << client.getFd() << std::endl;
+
+    // Peer closed write-side; try one final flush of queued replies.
+    if (client.hasPendingOutput()) {
+      flushClientOutput(client);
+    }
+
     for (size_t i = FIRST_CLIENT_INDEX; i < _poll_fds.size(); ++i) {
       if (_poll_fds[i].fd == client.getFd()) {
         removeClient(i);
@@ -305,7 +317,7 @@ void Server::processCommand(Client &client, const std::string &raw)
 	std::string cmd = msg.getCommand();
 	std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
   print(msg);
-	if (!client.isAuthenticated() && cmd != "PASS" && cmd != "NICK" && cmd != "USER" && cmd != "QUIT")
+	if (!client.isAuthenticated() && cmd != "PASS" && cmd != "NICK" && cmd != "USER" && cmd != "QUIT" && cmd != "CAP")
 	{
 		sendError(client, "451", ":You have not registered");
 		return;
