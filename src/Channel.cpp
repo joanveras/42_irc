@@ -15,7 +15,6 @@ Channel::Channel() {
   _modeT = false;
   _modeK = false;
   _modeL = false;
-  _banned = false;
 }
 
 Channel::Channel(const std::string &name) {
@@ -49,7 +48,6 @@ Channel &Channel::operator=(const Channel &other) {
     this->_modeT = other._modeT;
     this->_modeK = other._modeK;
     this->_modeL = other._modeL;
-    this->_banned = other._banned;
     this->_members = other._members;
     this->_operators = other._operators;
     this->_invitedFds = other._invitedFds;
@@ -144,10 +142,6 @@ bool Channel::isFull() const {
 
 bool Channel::isInviteOnly() const {
   return _modeI;
-}
-
-bool Channel::isBanned() const {
-  return _banned;
 }
 
 void Channel::addMember(Client *client) {

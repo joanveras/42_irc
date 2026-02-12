@@ -44,7 +44,6 @@ private:
   std::vector<int> _invitedFds;
   std::vector<int> _membersBanned;
 
-  bool _banned;
   bool _modeI;
   bool _modeT;
   bool _modeK;
@@ -64,7 +63,6 @@ public:
   bool isTopicRestricted() const;
   bool hasKey() const;
   bool isFull() const;
-  bool isBanned() const;
 
   // setters
   void setName(const std::string &name);
