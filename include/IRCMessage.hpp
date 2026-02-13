@@ -37,6 +37,7 @@ public:
 
 private:
   bool _valid;
+  bool _hasTrailing;
   std::string _prefix;
   std::string _command;
   std::string _trailing;
