@@ -1267,7 +1267,13 @@ void Server::handleKICK(Client &client, const IRCMessage &msg) {
 
   std::string channelName = msg.getParams()[0];
   std::string targetNick = msg.getParams()[1];
-  std::string reason = msg.getParamCount() > 2 ? msg.getTrailing() : client.getNickname();
+  std::string reason = client.getNickname();
+
+  if (msg.hasTrailing()) {
+    reason = msg.getTrailing();
+  } else if (msg.getParamCount() > 2) {
+    reason = msg.getParams()[2];
+  }
 
   std::map<std::string, Channel *>::iterator it = _channels.find(channelName);
   if (it == _channels.end()) {
