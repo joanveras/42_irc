@@ -1189,7 +1189,7 @@ void Server::handleTOPIC(Client &client, const IRCMessage &msg) {
     return;
   }
 
-  if (msg.getParamCount() == 1 && msg.getTrailing().empty()) {
+  if (msg.getParamCount() == 1 && !msg.hasTrailing()) {
     std::string topic = channel->getTopic();
     if (topic.empty()) {
       sendReply(client, "331 " + client.getNickname() + " " + channelName + " :No topic is set");
@@ -1199,7 +1199,7 @@ void Server::handleTOPIC(Client &client, const IRCMessage &msg) {
     return;
   }
 
-  if (!msg.getTrailing().empty() && !channel->isOperator(client.getFd())) {
+  if (!channel->canSetTopic(client.getFd())) {
     sendError(client, ERR_CHANOPRIVSNEEDED, channelName);
     return;
   }

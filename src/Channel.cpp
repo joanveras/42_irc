@@ -227,6 +227,9 @@ bool Channel::canSetMode(int clientFd) const {
 }
 
 bool Channel::canSetTopic(int clientFd) const {
+  if (!_modeT) {
+    return isMember(clientFd);
+  }
   return isOperator(clientFd);
 }
 

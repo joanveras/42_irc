@@ -1,9 +1,9 @@
 #include "../include/IRCMessage.hpp"
 
-IRCMessage::IRCMessage() : _valid(false) {
+IRCMessage::IRCMessage() : _valid(false), _hasTrailing(false) {
 }
 
-IRCMessage::IRCMessage(const std::string &raw) : _valid(false) {
+IRCMessage::IRCMessage(const std::string &raw) : _valid(false), _hasTrailing(false) {
   parse(raw);
 }
 
@@ -12,7 +12,7 @@ bool IRCMessage::isValid() const {
 }
 
 IRCMessage::IRCMessage(const IRCMessage &other)
-    : _valid(other._valid), _prefix(other._prefix), _command(other._command), _trailing(other._trailing),
+    : _valid(other._valid), _hasTrailing(other._hasTrailing), _prefix(other._prefix), _command(other._command), _trailing(other._trailing),
       _params(other._params) {
 }
 
@@ -22,6 +22,7 @@ IRCMessage::~IRCMessage() {
 IRCMessage &IRCMessage::operator=(const IRCMessage &other) {
   if (this != &other) {
     _valid = other._valid;
+    _hasTrailing = other._hasTrailing;
     _prefix = other._prefix;
     _command = other._command;
     _trailing = other._trailing;
@@ -36,6 +37,7 @@ bool IRCMessage::parse(const std::string &raw) {
   _params.clear();
   _trailing.clear();
   _valid = false;
+  _hasTrailing = false;
 
   if (raw.empty() || raw.length() > IRC_MAX_MESSAGE_LENGTH)
     return false;
@@ -93,6 +95,7 @@ bool IRCMessage::parse(const std::string &raw) {
   // ==== PARAMS ====
   while (pos < line.length()) {
     if (line[pos] == ':') {
+      _hasTrailing = true;
       _trailing = line.substr(pos + IRC_PARAM_OFFSET);
       break;
     }
@@ -132,7 +135,7 @@ const std::string &IRCMessage::getPrefix() const {
 }
 
 bool IRCMessage::hasTrailing() const {
-  return !_trailing.empty();
+  return _hasTrailing;
 }
 
 const std::string &IRCMessage::getCommand() const {
