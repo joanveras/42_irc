@@ -961,9 +961,10 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
 
   Channel *channel = it->second;
 
-  if (msg.getParamCount() == 1 && msg.getTrailing().empty()) {
+  // MODE #chan (mostrar modos atuais)
+  if (msg.getParamCount() == 1) {
     std::string modes = "+";
-    std::string modeParams;
+    std::string params;
 
     if (channel->isInviteOnly())
       modes += "i";
@@ -971,10 +972,17 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
       modes += "t";
     if (channel->hasKey()) {
       modes += "k";
-      modeParams = " " + channel->getKey();
+      params += " " + channel->getKey();
     }
+    if (channel->getMode('l')) {
+    modes += "l";
 
-    sendReply(client, "324 " + client.getNickname() + " " + target + " " + modes + modeParams);
+    std::stringstream ss;
+    ss << channel->getLimit();
+    params += " " + ss.str();
+  }
+
+    sendReply(client, "324 " + client.getNickname() + " " + target + " " + modes + params);
     return;
   }
 
@@ -987,96 +995,118 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
   bool adding = true;
   size_t paramIndex = 2;
 
-  std::string modeChanges;
+  std::string plusFlags;
+  std::string minusFlags;
+  std::vector<std::string> modeParams;
 
   for (size_t i = 0; i < modeStr.length(); ++i) {
     char mode = modeStr[i];
 
     if (mode == '+') {
       adding = true;
-      modeChanges += '+';
       continue;
-    } else if (mode == '-') {
+    }
+    else if (mode == '-') {
       adding = false;
-      modeChanges += '-';
       continue;
     }
 
     switch (mode) {
-    case 'i': // invite-only
+
+    case 'i':
       channel->setMode('i', adding);
-      modeChanges += 'i';
+      (adding ? plusFlags : minusFlags) += 'i';
       break;
 
-    case 't': // topic restriction
+    case 't':
       channel->setMode('t', adding);
-      modeChanges += 't';
+      (adding ? plusFlags : minusFlags) += 't';
       break;
 
-    case 'k': // channel key (password)
+    case 'k':
       if (adding) {
         if (channel->hasKey()) {
           sendError(client, ERR_KEYSET, target);
           break;
         }
         if (paramIndex < msg.getParamCount()) {
-          channel->setKey(msg.getParams()[paramIndex]);
+          std::string key = msg.getParams()[paramIndex++];
+          channel->setKey(key);
           channel->setMode('k', true);
-          modeChanges += 'k';
-          modeChanges += " " + msg.getParams()[paramIndex++];
+          plusFlags += 'k';
+          modeParams.push_back(key);
         } else {
           sendError(client, ERR_NEEDMOREPARAMS, "MODE");
         }
       } else {
         channel->setKey("");
         channel->setMode('k', false);
-        modeChanges += 'k';
+        minusFlags += 'k';
       }
       break;
 
-    case 'o': // operator privilege
+    case 'o':
       if (paramIndex < msg.getParamCount()) {
         std::string targetNick = msg.getParams()[paramIndex++];
         Client *targetClient = findClientByNick(targetNick);
+
         if (targetClient && channel->isMember(targetClient->getFd())) {
-          if (adding) {
+          if (adding)
             channel->addOperator(targetClient->getFd());
-          } else {
+          else
             channel->removeOperator(targetClient->getFd());
-          }
-          modeChanges += 'o';
-          modeChanges += " " + targetNick;
+
+          (adding ? plusFlags : minusFlags) += 'o';
+          modeParams.push_back(targetNick);
         }
+      } else {
+        sendError(client, ERR_NEEDMOREPARAMS, "MODE");
       }
       break;
 
-    case 'l': // user limit
+    case 'l':
       if (adding) {
         if (paramIndex < msg.getParamCount()) {
           int limitValue = atoi(msg.getParams()[paramIndex++].c_str());
           if (limitValue > 0) {
-            channel->setLimit(static_cast<std::size_t>(limitValue));
+            channel->setLimit(static_cast<size_t>(limitValue));
             channel->setMode('l', true);
-            modeChanges += 'l';
-            modeChanges += " " + msg.getParams()[paramIndex - 1];
+            plusFlags += 'l';
+            modeParams.push_back(msg.getParams()[paramIndex - 1]);
           }
+        } else {
+          sendError(client, ERR_NEEDMOREPARAMS, "MODE");
         }
       } else {
-        channel->setLimit(0); // Remove limit
+        channel->setLimit(0);
         channel->setMode('l', false);
-        modeChanges += 'l';
+        minusFlags += 'l';
       }
       break;
 
     default:
       sendError(client, ERR_UNKNOWNMODE, std::string(1, mode));
-      continue;
+      break;
     }
   }
 
-  if (!modeChanges.empty()) {
-    std::string modeMsg = ":" + client.getNickname() + "!" + client.getUsername() + "@localhost MODE " + target + " " +
-                          modeChanges + "\r\n";
+  if (!plusFlags.empty() || !minusFlags.empty()) {
+    std::string modeSection;
+
+    if (!plusFlags.empty())
+      modeSection += "+" + plusFlags;
+    if (!minusFlags.empty())
+      modeSection += "-" + minusFlags;
+
+    std::string modeMsg = ":" + client.getNickname() + "!" +
+                          client.getUsername() + "@localhost MODE " +
+                          target + " " + modeSection;
+
+    for (size_t i = 0; i < modeParams.size(); ++i)
+      modeMsg += " " + modeParams[i];
+
+    modeMsg += "\r\n";
+
     broadcastToChannel(target, modeMsg);
   }
 }
