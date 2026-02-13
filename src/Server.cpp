@@ -7,7 +7,6 @@
 #include <sstream>
 
 namespace {
-// Server constants for socket operations and polling
 const int ERROR_CODE = -1;
 const int POLL_TIMEOUT = -1;
 const int SERVER_FD_INDEX = 0;
@@ -15,8 +14,6 @@ const int FIRST_CLIENT_INDEX = 1;
 const size_t BUFFER_SIZE = 512;
 const int SOCK_OPT = 1;
 const int ONE_BYTE = 1;
-// const int MIN_USER_ARGS = 5;
-// const int REALNAME_ARG = 4;
 const int MAX_CHANNELS_PER_USER = 10;
 
 volatile sig_atomic_t g_shutdown_requested = 0;
@@ -25,7 +22,7 @@ void handleSignal(int signalNumber) {
   (void)signalNumber;
   g_shutdown_requested = 1;
 }
-} // namespace
+}
 
 Server::Server() {
 }
@@ -234,7 +231,6 @@ void Server::handleClientData(Client &client) {
 
     while (client.hasCompleteMessage()) {
       std::string command = client.extractCommand();
-      //std::cout << "Complete command: [" << command << "]" << std::endl;
 
       processCommand(client, command);
 
@@ -957,11 +953,6 @@ void Server::handleMODE(Client &client, const IRCMessage &msg) {
 
   std::string target = msg.getParams()[0];
 
-  // if (target[0] != '#' && target[0] != '&') {
-  //   sendError(client, "502", ":Cannot change mode for other users");
-  //   return;
-  // }
-
   std::map<std::string, Channel *>::iterator it = _channels.find(target);
   if (it == _channels.end()) {
     sendError(client, ERR_NOSUCHCHANNEL, target);
@@ -1107,10 +1098,7 @@ void Server::handleLIST(Client &client, const IRCMessage &msg) {
   }
 
   for (std::map<std::string, Channel *>::iterator it = _channels.begin(); it != _channels.end(); ++it) {
-    // if (!filter.empty() && it->first != filter) {
-    //   continue;
-    // }
-
+ 
     Channel *channel = it->second;
 
     std::string topic = channel->getTopic();
